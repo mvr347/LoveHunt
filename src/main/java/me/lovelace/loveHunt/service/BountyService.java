@@ -8,6 +8,8 @@ import me.lovelace.loveHunt.model.Bounty;
 import me.lovelace.loveHunt.model.BountyStatus;
 import me.lovelace.loveHunt.model.BountyType;
 import me.lovelace.loveHunt.model.CreateSession;
+import me.lovelace.loveHunt.model.HunterRating;
+import me.lovelace.loveHunt.model.PendingReward;
 import me.lovelace.loveHunt.model.RewardItem;
 import me.lovelace.loveHunt.util.ItemUtil;
 import me.lovelace.loveHunt.util.TimeUtil;
@@ -20,6 +22,7 @@ import org.bukkit.plugin.java.JavaPlugin;
 import me.lovelace.loveHunt.api.event.BountyCreateEvent;
 import me.lovelace.loveHunt.api.event.BountyAcceptEvent;
 import me.lovelace.loveHunt.api.event.BountyCancelEvent;
+import me.lovelace.loveHunt.api.event.BountyClaimEvent;
 
 import java.time.Duration;
 import java.util.Collection;
@@ -40,6 +43,7 @@ public final class BountyService {
     private final Lang lang;
     private final DatabaseManager database;
     private final LoveHuntClans clans;
+    private final RatingService ratingService;
 
     private final ConcurrentHashMap<UUID, Bounty> activeBountiesByTarget = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<UUID, CopyOnWriteArrayList<Bounty>> bountiesByCreator = new ConcurrentHashMap<>();
@@ -51,17 +55,17 @@ public final class BountyService {
 
     private volatile boolean ready;
 
-    public BountyService(JavaPlugin plugin, Settings settings, Lang lang, DatabaseManager database, LoveHuntClans clans) {
+    public BountyService(JavaPlugin plugin, Settings settings, Lang lang, DatabaseManager database, LoveHuntClans clans, RatingService ratingService) {
         this.plugin = plugin;
         this.settings = settings;
         this.lang = lang;
         this.database = database;
         this.clans = clans;
+        this.ratingService = ratingService;
     }
 
     public CompletableFuture<Void> load() {
-        long now = System.currentTimeMillis();
-        return database.cleanupExpired(now)
+        return ratingService.load()
                 .thenCompose(ignored -> database.loadActiveBounties())
                 .thenCombine(database.loadCooldowns(), (bounties, loadedCooldowns) -> {
                     activeBountiesByTarget.clear();
@@ -72,7 +76,7 @@ public final class BountyService {
                     cooldowns.putAll(loadedCooldowns);
                     for (Bounty bounty : bounties) {
                         cache(bounty);
-            Bukkit.getPluginManager().callEvent(new BountyCreateEvent(bounty, true));
+                        Bukkit.getPluginManager().callEvent(new BountyCreateEvent(bounty, true));
                     }
                     return null;
                 })
@@ -93,6 +97,8 @@ public final class BountyService {
                     }
                     ready = true;
                     plugin.getLogger().info("Loaded " + bountiesById.size() + " active bounties.");
+                    // Resolve anything that already expired while the server was offline.
+                    processExpirations();
                 });
     }
 
@@ -127,9 +133,28 @@ public final class BountyService {
         return Set.copyOf(acceptedByHunter.getOrDefault(hunter, Set.of()));
     }
 
+    public List<UUID> huntersOf(long bountyId) {
+        return List.copyOf(huntersByBounty.getOrDefault(bountyId, Set.of()));
+    }
+
+    public int hunterCount(long bountyId) {
+        return huntersByBounty.getOrDefault(bountyId, Set.of()).size();
+    }
+
+    public LoveHuntClans clans() {
+        return clans;
+    }
+
+    public RatingService ratings() {
+        return ratingService;
+    }
+
     public CreateCheck validateCreation(Player creator, String targetName) {
         if (creator == null || creator.getUniqueId() == null) {
             return CreateCheck.error("unknown-player", Map.of());
+        }
+        if (ratingService.isCreateBlocked(creator.getUniqueId())) {
+            return CreateCheck.error("create-blocked", Map.of());
         }
         OfflinePlayer target = Bukkit.getOfflinePlayer(targetName);
         UUID targetUuid = target.getUniqueId();
@@ -176,7 +201,7 @@ public final class BountyService {
             return CompletableFuture.failedFuture(new IllegalStateException("Unable to remove reward items"));
         }
         long now = System.currentTimeMillis();
-        long expires = now + Duration.ofDays(settings.creationDurationDays()).toMillis();
+        long expires = now + Duration.ofHours(settings.playerBaseDurationHours()).toMillis();
         Bounty draft = new Bounty(0L, BountyType.PLAYER, session.targetUuid(), session.targetName(), creator.getUniqueId(), creator.getName(),
                 null, session.reward(), now, expires, BountyStatus.ACTIVE);
         return database.insertBounty(draft).thenApply(bounty -> {
@@ -195,6 +220,12 @@ public final class BountyService {
 
     public CompletableFuture<Boolean> accept(Player hunter, Bounty bounty) {
         if (bounty == null || bounty.status() != BountyStatus.ACTIVE || !bountiesById.containsKey(bounty.id())) {
+            return CompletableFuture.completedFuture(false);
+        }
+        if (ratingService.isAcceptBlocked(hunter.getUniqueId())) {
+            return CompletableFuture.completedFuture(false);
+        }
+        if (isFrozen(bounty)) {
             return CompletableFuture.completedFuture(false);
         }
         BountyAcceptEvent event = new BountyAcceptEvent(hunter, bounty, true);
@@ -219,15 +250,67 @@ public final class BountyService {
         });
     }
 
+    /**
+     * True once the bounty's target has been offline for at least the freeze threshold for its
+     * type, meaning hunters can no longer accept it (it isn't deleted yet - that happens once the
+     * longer delete threshold is reached, via {@link #processOfflineSweep()}).
+     */
+    public boolean isFrozen(Bounty bounty) {
+        long offlineMillis = offlineDuration(bounty.targetUuid());
+        if (offlineMillis <= 0L) {
+            return false;
+        }
+        int freezeDays = bounty.type() == BountyType.SERVER ? settings.serverOfflineFreezeDays() : settings.offlineFreezeDays();
+        return offlineMillis >= Duration.ofDays(freezeDays).toMillis();
+    }
+
+    private long offlineDuration(UUID targetUuid) {
+        OfflinePlayer target = Bukkit.getOfflinePlayer(targetUuid);
+        if (target.isOnline()) {
+            return 0L;
+        }
+        long lastSeen = target.getLastSeen();
+        if (lastSeen <= 0L) {
+            return 0L;
+        }
+        return System.currentTimeMillis() - lastSeen;
+    }
+
     public void complete(Bounty bounty, Player hunter) {
         if (bounty == null || hunter == null) {
             return;
         }
+        penalizeOtherHunters(bounty, hunter.getUniqueId());
         removeCached(bounty, BountyStatus.COMPLETED);
         database.updateStatus(bounty.id(), BountyStatus.COMPLETED);
-        giveOrDrop(hunter, bounty.reward());
-        lang.send(hunter, "reward-given", lang.placeholders("amount", bounty.reward().amount(), "item", bounty.reward().displayName()));
+
+        int amount = bounty.reward().amount();
+        if (bounty.type() == BountyType.SERVER) {
+            amount = applyServerEscalation(bounty, amount);
+        }
+        HunterRating rating = ratingService.get(hunter.getUniqueId());
+        amount = ratingService.applyRewardModifier(amount, rating.rating());
+        RewardItem finalReward = bounty.reward().withAmount(Math.max(1, amount));
+
+        ratingService.recordCompletion(hunter.getUniqueId());
+        giveOrDrop(hunter, finalReward);
+        lang.send(hunter, "reward-given", lang.placeholders("amount", finalReward.amount(), "item", finalReward.displayName()));
         Bukkit.broadcast(lang.component("bounty-completed", lang.placeholders("hunter", hunter.getName(), "target", bounty.targetName()), true));
+        Bukkit.getPluginManager().callEvent(new BountyClaimEvent(bounty, hunter));
+    }
+
+    private int applyServerEscalation(Bounty bounty, int baseAmount) {
+        long elapsed = System.currentTimeMillis() - bounty.createdAt();
+        long threeDayBlocks = elapsed / Duration.ofDays(3).toMillis();
+        int percent = (int) Math.min(settings.serverEscalationCapPercent(), threeDayBlocks * settings.serverEscalationPercentPer3Days());
+        if (percent <= 0) {
+            return baseAmount;
+        }
+        // NOTE: this materializes extra items beyond what was originally escrowed, since the
+        // plugin has no internal currency/bank to draw the escalation bonus from. Revisit once
+        // ItemsAdder-based economy/value integration lands.
+        long bonus = (long) Math.ceil(baseAmount * (percent / 100.0));
+        return (int) Math.min(Integer.MAX_VALUE, baseAmount + bonus);
     }
 
     public void cancel(Bounty bounty) {
@@ -239,8 +322,121 @@ public final class BountyService {
         if (event.isCancelled()) {
             return;
         }
+        penalizeOtherHunters(bounty, null);
         removeCached(bounty, BountyStatus.CANCELLED);
         database.updateStatus(bounty.id(), BountyStatus.CANCELLED);
+    }
+
+    public boolean cancelByCreator(Player creator, Bounty bounty) {
+        if (bounty == null || bounty.status() != BountyStatus.ACTIVE || !bountiesById.containsKey(bounty.id())) {
+            return false;
+        }
+        if (bounty.type() != BountyType.PLAYER || bounty.creatorUuid() == null || !bounty.creatorUuid().equals(creator.getUniqueId())) {
+            return false;
+        }
+        BountyCancelEvent event = new BountyCancelEvent(bounty);
+        Bukkit.getPluginManager().callEvent(event);
+        if (event.isCancelled()) {
+            return false;
+        }
+        penalizeOtherHunters(bounty, null);
+        removeCached(bounty, BountyStatus.CANCELLED);
+        database.updateStatus(bounty.id(), BountyStatus.CANCELLED);
+        RewardItem refund = withheld(bounty.reward(), settings.cancelPenaltyPercent());
+        // The withheld percentage is forfeited to "the server" - since there's no internal
+        // currency/bank, it is simply not paid out (destroyed). TODO: once ItemsAdder-based
+        // economy/value integration lands, route the withheld portion into a real sink instead.
+        deliverReward(creator.getUniqueId(), refund);
+        return true;
+    }
+
+    /**
+     * Finds active bounties whose expiry has passed and resolves them as a natural/automatic
+     * expiry: the creator gets their reward back minus the expiry penalty (forfeited, no
+     * completion occurred), and any hunters who had accepted but never finished it take the
+     * rating penalty for an unfinished acceptance.
+     */
+    public void processExpirations() {
+        long now = System.currentTimeMillis();
+        for (Bounty bounty : List.copyOf(bountiesById.values())) {
+            if (bounty.status() != BountyStatus.ACTIVE || !bounty.isExpired(now)) {
+                continue;
+            }
+            penalizeOtherHunters(bounty, null);
+            removeCached(bounty, BountyStatus.CANCELLED);
+            database.updateStatus(bounty.id(), BountyStatus.CANCELLED);
+            if (bounty.creatorUuid() != null) {
+                RewardItem refund = withheld(bounty.reward(), settings.expiryPenaltyPercent());
+                deliverReward(bounty.creatorUuid(), refund);
+            }
+            plugin.getLogger().info("Bounty " + bounty.id() + " expired naturally and was resolved with a "
+                    + settings.expiryPenaltyPercent() + "% penalty.");
+        }
+    }
+
+    /**
+     * Deletes active bounties whose target has been offline past the delete threshold for its
+     * type. Player/clan bounties refund the creator minus the offline-delete penalty; server
+     * bounties simply close (there is no creator to refund).
+     */
+    public void processOfflineSweep() {
+        for (Bounty bounty : List.copyOf(bountiesById.values())) {
+            if (bounty.status() != BountyStatus.ACTIVE) {
+                continue;
+            }
+            long offlineMillis = offlineDuration(bounty.targetUuid());
+            if (offlineMillis <= 0L) {
+                continue;
+            }
+            int deleteDays = bounty.type() == BountyType.SERVER ? settings.serverOfflineDeleteDays() : settings.offlineDeleteDays();
+            if (offlineMillis < Duration.ofDays(deleteDays).toMillis()) {
+                continue;
+            }
+            penalizeOtherHunters(bounty, null);
+            removeCached(bounty, BountyStatus.CANCELLED);
+            database.updateStatus(bounty.id(), BountyStatus.CANCELLED);
+            if (bounty.creatorUuid() != null) {
+                RewardItem refund = withheld(bounty.reward(), settings.offlineDeletePenaltyPercent());
+                deliverReward(bounty.creatorUuid(), refund);
+            }
+            plugin.getLogger().info("Bounty " + bounty.id() + " deleted: target offline too long.");
+        }
+    }
+
+    public ExtendResult extend(Player creator, Bounty bounty) {
+        if (bounty == null || bounty.status() != BountyStatus.ACTIVE || !bountiesById.containsKey(bounty.id())) {
+            return ExtendResult.error("bounty-unavailable");
+        }
+        if ((bounty.type() != BountyType.PLAYER && bounty.type() != BountyType.CLAN)
+                || bounty.creatorUuid() == null || !bounty.creatorUuid().equals(creator.getUniqueId())) {
+            return ExtendResult.error("extend-not-owner");
+        }
+        boolean clan = bounty.type() == BountyType.CLAN;
+        int baseHours = clan ? settings.clanBaseDurationHours() : settings.playerBaseDurationHours();
+        int maxDays = clan ? settings.clanMaxDurationDays() : settings.playerMaxDurationDays();
+        int costPercent = clan ? settings.clanExtendCostPercent() : settings.playerExtendCostPercent();
+        int currentTotalDays = (int) Math.ceil(baseHours / 24.0) + bounty.extendedDays();
+        if (currentTotalDays >= maxDays) {
+            return ExtendResult.error("extend-max-duration");
+        }
+        int currentAmount = bounty.reward().amount();
+        int cost = Math.max(1, (int) Math.ceil(currentAmount * (costPercent / 100.0)));
+        RewardItem costItem = bounty.reward().withAmount(cost);
+        if (!ItemUtil.hasSimilar(creator, costItem)) {
+            return ExtendResult.error("extend-not-enough-items", Map.of("amount", String.valueOf(cost), "item", bounty.reward().displayName()));
+        }
+        if (!ItemUtil.removeSimilar(creator, costItem)) {
+            return ExtendResult.error("extend-not-enough-items", Map.of("amount", String.valueOf(cost), "item", bounty.reward().displayName()));
+        }
+        int newAmount = currentAmount + cost;
+        long currentExpiry = bounty.expiresAt() == null ? System.currentTimeMillis() : bounty.expiresAt();
+        long newExpiry = currentExpiry + Duration.ofDays(1).toMillis();
+        int newExtendedDays = bounty.extendedDays() + 1;
+        RewardItem newReward = bounty.reward().withAmount(newAmount);
+        Bounty updated = bounty.withExtension(newReward, newExpiry, newExtendedDays);
+        replaceCached(bounty, updated);
+        database.updateRewardAmountAndExpiry(bounty.id(), newAmount, newExpiry, newExtendedDays);
+        return ExtendResult.success(updated, cost);
     }
 
     public CompletableFuture<Bounty> createClanBounty(UUID creatorUuid, String creatorName, UUID targetUuid, String targetName, RewardItem reward) {
@@ -259,7 +455,7 @@ public final class BountyService {
         }
         long now = System.currentTimeMillis();
         Bounty draft = new Bounty(0L, BountyType.CLAN, targetUuid, targetName, creatorUuid, creatorName, clanTag, reward,
-                now, now + Duration.ofDays(settings.clanDurationDays()).toMillis(), BountyStatus.ACTIVE);
+                now, now + Duration.ofHours(settings.clanBaseDurationHours()).toMillis(), BountyStatus.ACTIVE);
         return database.insertBounty(draft).thenApply(bounty -> {
             cache(bounty);
             Bukkit.getPluginManager().callEvent(new BountyCreateEvent(bounty, true));
@@ -270,6 +466,31 @@ public final class BountyService {
     public CompletableFuture<Bounty> createServerBounty(UUID targetUuid, String targetName, RewardItem reward) {
         long now = System.currentTimeMillis();
         Bounty draft = new Bounty(0L, BountyType.SERVER, targetUuid, targetName, null, "Server", null, reward, now, null, BountyStatus.ACTIVE);
+        return database.insertBounty(draft).thenApply(bounty -> {
+            cache(bounty);
+            Bukkit.getPluginManager().callEvent(new BountyCreateEvent(bounty, true));
+            return bounty;
+        });
+    }
+
+    /**
+     * Admin-issued bounty creation on behalf of any player (or with no creator, for SERVER
+     * bounties). Unlike {@link #createPlayerBounty}, this never touches anyone's inventory -
+     * the reward is conjured directly, since it is issued by staff rather than escrowed by a
+     * live player.
+     */
+    public CompletableFuture<Bounty> createAdminBounty(BountyType type, UUID creatorUuid, String creatorName,
+                                                        UUID targetUuid, String targetName, String clanTag, RewardItem reward) {
+        if (activeBountiesByTarget.containsKey(targetUuid)) {
+            return CompletableFuture.failedFuture(new IllegalStateException("Target already has active bounty"));
+        }
+        long now = System.currentTimeMillis();
+        Long expiresAt = switch (type) {
+            case PLAYER -> now + Duration.ofHours(settings.playerBaseDurationHours()).toMillis();
+            case CLAN -> now + Duration.ofHours(settings.clanBaseDurationHours()).toMillis();
+            case SERVER -> null;
+        };
+        Bounty draft = new Bounty(0L, type, targetUuid, targetName, creatorUuid, creatorName, clanTag, reward, now, expiresAt, BountyStatus.ACTIVE);
         return database.insertBounty(draft).thenApply(bounty -> {
             cache(bounty);
             Bukkit.getPluginManager().callEvent(new BountyCreateEvent(bounty, true));
@@ -321,6 +542,27 @@ public final class BountyService {
         }
     }
 
+    private void replaceCached(Bounty oldBounty, Bounty newBounty) {
+        bountiesById.put(newBounty.id(), newBounty);
+        activeBountiesByTarget.put(newBounty.targetUuid(), newBounty);
+        replaceIn(bountiesAgainstPlayer.get(newBounty.targetUuid()), newBounty);
+        if (newBounty.creatorUuid() != null) {
+            replaceIn(bountiesByCreator.get(newBounty.creatorUuid()), newBounty);
+        }
+    }
+
+    private void replaceIn(List<Bounty> list, Bounty newBounty) {
+        if (list == null) {
+            return;
+        }
+        for (int index = 0; index < list.size(); index++) {
+            if (list.get(index).id() == newBounty.id()) {
+                list.set(index, newBounty);
+                return;
+            }
+        }
+    }
+
     private void removeCached(Bounty bounty, BountyStatus status) {
         Bounty updated = bounty.withStatus(status);
         bountiesById.remove(bounty.id());
@@ -336,6 +578,26 @@ public final class BountyService {
         plugin.getLogger().fine("Bounty " + updated.id() + " marked as " + updated.status());
     }
 
+    /**
+     * Applies the rating failure penalty to every hunter who had accepted this bounty, except
+     * the one passed as {@code excluded} (typically the hunter who just completed it, if any).
+     * Must be called before the bounty is removed from {@code huntersByBounty}.
+     */
+    private void penalizeOtherHunters(Bounty bounty, UUID excluded) {
+        for (UUID hunterUuid : huntersByBounty.getOrDefault(bounty.id(), Set.of())) {
+            if (excluded != null && excluded.equals(hunterUuid)) {
+                continue;
+            }
+            ratingService.recordFailure(hunterUuid);
+        }
+    }
+
+    private RewardItem withheld(RewardItem reward, int penaltyPercent) {
+        int amount = reward.amount();
+        long refunded = (long) Math.floor(amount * ((100 - penaltyPercent) / 100.0));
+        return reward.withAmount((int) Math.max(0, Math.min(amount, refunded)));
+    }
+
     private void removeFrom(Collection<Bounty> collection, long id) {
         if (collection != null) {
             collection.removeIf(bounty -> bounty.id() == id);
@@ -347,11 +609,44 @@ public final class BountyService {
     }
 
     private void giveOrDrop(Player player, RewardItem reward) {
+        if (reward.amount() <= 0) {
+            return;
+        }
         HashMap<Integer, ItemStack> leftovers = player.getInventory().addItem(reward.stack());
         for (ItemStack leftover : leftovers.values()) {
             player.getWorld().dropItemNaturally(player.getLocation(), leftover);
             lang.send(player, "inventory-drop");
         }
+    }
+
+    /**
+     * Delivers a reward to a player who may currently be offline: gives/drops it immediately if
+     * they're online, otherwise queues it for delivery the next time they join.
+     */
+    private void deliverReward(UUID uuid, RewardItem reward) {
+        if (reward.amount() <= 0) {
+            return;
+        }
+        Player online = Bukkit.getPlayer(uuid);
+        if (online != null) {
+            giveOrDrop(online, reward);
+        } else {
+            database.queuePendingReward(uuid, reward, System.currentTimeMillis());
+        }
+    }
+
+    public void deliverPendingRewards(Player player) {
+        database.loadAndClearPendingRewards(player.getUniqueId()).thenAccept(pending -> {
+            if (pending.isEmpty()) {
+                return;
+            }
+            Bukkit.getScheduler().runTask(plugin, () -> {
+                for (PendingReward reward : pending) {
+                    giveOrDrop(player, reward.reward());
+                }
+                lang.send(player, "pending-rewards-delivered", lang.placeholders("count", String.valueOf(pending.size())));
+            });
+        });
     }
 
     public record CreateCheck(boolean success, CreateSession session, String messageKey, Map<String, String> placeholders) {
@@ -361,6 +656,20 @@ public final class BountyService {
 
         public static CreateCheck error(String key, Map<String, String> placeholders) {
             return new CreateCheck(false, null, key, placeholders);
+        }
+    }
+
+    public record ExtendResult(boolean success, Bounty bounty, int cost, String messageKey, Map<String, String> placeholders) {
+        public static ExtendResult success(Bounty bounty, int cost) {
+            return new ExtendResult(true, bounty, cost, null, Map.of());
+        }
+
+        public static ExtendResult error(String key) {
+            return new ExtendResult(false, null, 0, key, Map.of());
+        }
+
+        public static ExtendResult error(String key, Map<String, String> placeholders) {
+            return new ExtendResult(false, null, 0, key, placeholders);
         }
     }
 

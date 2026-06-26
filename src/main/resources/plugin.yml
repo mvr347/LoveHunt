@@ -6,12 +6,17 @@ author: Lovelace
 description: Item-based bounty hunting for Paper/Purpur.
 softdepend:
   - Clans
+  - Citizens
+  - PlaceholderAPI
 commands:
   lovehunt:
     description: Opens LoveHunt menu.
     aliases:
       - hunt
       - lh
+    usage: /<command>
+  hunts:
+    description: Opens the all-orders LoveHunt screen directly.
     usage: /<command>
 permissions:
   lovehunt.use:

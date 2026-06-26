@@ -44,7 +44,7 @@ public final class Lang {
 
     public void sendClickableCancel(CommandSender sender) {
         Component component = component("cancel-click", Map.of(), false)
-                .clickEvent(ClickEvent.runCommand("/ph cancel"));
+                .clickEvent(ClickEvent.runCommand("/lovehunt cancel"));
         sender.sendMessage(component);
     }
 
