@@ -6,6 +6,9 @@ import me.lovelace.loveHunt.config.Settings;
 import me.lovelace.loveHunt.model.Bounty;
 import me.lovelace.loveHunt.model.BountyStatus;
 import me.lovelace.loveHunt.model.BountyType;
+import me.lovelace.loveHunt.model.HunterRating;
+import me.lovelace.loveHunt.model.PendingReward;
+import me.lovelace.loveHunt.model.PlayerLock;
 import me.lovelace.loveHunt.model.RewardItem;
 import me.lovelace.loveHunt.util.ItemUtil;
 import org.bukkit.Material;
@@ -99,21 +102,45 @@ public final class DatabaseManager {
                 statement.execute("CREATE INDEX IF NOT EXISTS idx_bounties_status_target ON bounties(status, target_uuid)");
                 statement.execute("CREATE INDEX IF NOT EXISTS idx_bounties_creator ON bounties(status, creator_uuid)");
                 statement.execute("CREATE INDEX IF NOT EXISTS idx_bounty_hunters_hunter ON bounty_hunters(hunter_uuid)");
+
+                statement.execute("CREATE TABLE IF NOT EXISTS hunter_ratings (" +
+                        "uuid TEXT PRIMARY KEY," +
+                        "rating REAL NOT NULL DEFAULT 2.5," +
+                        "completed INTEGER NOT NULL DEFAULT 0," +
+                        "failed INTEGER NOT NULL DEFAULT 0" +
+                        ")");
+                statement.execute("CREATE TABLE IF NOT EXISTS player_locks (" +
+                        "uuid TEXT PRIMARY KEY," +
+                        "create_blocked INTEGER NOT NULL DEFAULT 0," +
+                        "accept_blocked INTEGER NOT NULL DEFAULT 0" +
+                        ")");
+                statement.execute("CREATE TABLE IF NOT EXISTS pending_rewards (" +
+                        "id INTEGER PRIMARY KEY AUTOINCREMENT," +
+                        "uuid TEXT NOT NULL," +
+                        "material TEXT NOT NULL," +
+                        "amount INTEGER NOT NULL," +
+                        "item_data TEXT," +
+                        "display_name TEXT," +
+                        "created_at INTEGER NOT NULL" +
+                        ")");
+                statement.execute("CREATE INDEX IF NOT EXISTS idx_pending_rewards_uuid ON pending_rewards(uuid)");
+                addColumnIfMissing(connection, "bounties", "extended_days", "INTEGER NOT NULL DEFAULT 0");
             }
         });
     }
 
-    public CompletableFuture<Integer> cleanupExpired(long now) {
-        return supplyAsync(() -> {
-            try (Connection connection = dataSource.getConnection();
-                 PreparedStatement statement = connection.prepareStatement(
-                         "UPDATE bounties SET status=? WHERE status=? AND expires_at IS NOT NULL AND expires_at <= ?")) {
-                statement.setString(1, BountyStatus.CANCELLED.name());
-                statement.setString(2, BountyStatus.ACTIVE.name());
-                statement.setLong(3, now);
-                return statement.executeUpdate();
+    private void addColumnIfMissing(Connection connection, String table, String column, String definition) throws SQLException {
+        try (Statement check = connection.createStatement();
+             ResultSet resultSet = check.executeQuery("PRAGMA table_info(" + table + ")")) {
+            while (resultSet.next()) {
+                if (column.equalsIgnoreCase(resultSet.getString("name"))) {
+                    return;
+                }
             }
-        });
+        }
+        try (Statement alter = connection.createStatement()) {
+            alter.execute("ALTER TABLE " + table + " ADD COLUMN " + column + " " + definition);
+        }
     }
 
     public CompletableFuture<List<Bounty>> loadActiveBounties() {
@@ -244,6 +271,139 @@ public final class DatabaseManager {
         });
     }
 
+    public CompletableFuture<Map<UUID, HunterRating>> loadRatings() {
+        return supplyAsync(() -> {
+            Map<UUID, HunterRating> ratings = new HashMap<>();
+            try (Connection connection = dataSource.getConnection();
+                 PreparedStatement statement = connection.prepareStatement("SELECT uuid, rating, completed, failed FROM hunter_ratings");
+                 ResultSet resultSet = statement.executeQuery()) {
+                while (resultSet.next()) {
+                    UUID uuid = uuid(resultSet.getString("uuid"));
+                    ratings.put(uuid, new HunterRating(uuid, resultSet.getDouble("rating"), resultSet.getInt("completed"), resultSet.getInt("failed")));
+                }
+            }
+            return ratings;
+        });
+    }
+
+    public CompletableFuture<Void> upsertRating(HunterRating rating) {
+        return runAsync(() -> {
+            try (Connection connection = dataSource.getConnection();
+                 PreparedStatement statement = connection.prepareStatement(
+                         "INSERT INTO hunter_ratings(uuid,rating,completed,failed) VALUES(?,?,?,?) " +
+                                 "ON CONFLICT(uuid) DO UPDATE SET rating=excluded.rating, completed=excluded.completed, failed=excluded.failed")) {
+                statement.setString(1, rating.uuid().toString());
+                statement.setDouble(2, rating.rating());
+                statement.setInt(3, rating.completed());
+                statement.setInt(4, rating.failed());
+                statement.executeUpdate();
+            }
+        });
+    }
+
+    public CompletableFuture<Map<UUID, PlayerLock>> loadLocks() {
+        return supplyAsync(() -> {
+            Map<UUID, PlayerLock> locks = new HashMap<>();
+            try (Connection connection = dataSource.getConnection();
+                 PreparedStatement statement = connection.prepareStatement("SELECT uuid, create_blocked, accept_blocked FROM player_locks");
+                 ResultSet resultSet = statement.executeQuery()) {
+                while (resultSet.next()) {
+                    UUID uuid = uuid(resultSet.getString("uuid"));
+                    locks.put(uuid, new PlayerLock(uuid, resultSet.getInt("create_blocked") != 0, resultSet.getInt("accept_blocked") != 0));
+                }
+            }
+            return locks;
+        });
+    }
+
+    public CompletableFuture<Void> upsertLock(PlayerLock lock) {
+        return runAsync(() -> {
+            try (Connection connection = dataSource.getConnection();
+                 PreparedStatement statement = connection.prepareStatement(
+                         "INSERT INTO player_locks(uuid,create_blocked,accept_blocked) VALUES(?,?,?) " +
+                                 "ON CONFLICT(uuid) DO UPDATE SET create_blocked=excluded.create_blocked, accept_blocked=excluded.accept_blocked")) {
+                statement.setString(1, lock.uuid().toString());
+                statement.setInt(2, lock.createBlocked() ? 1 : 0);
+                statement.setInt(3, lock.acceptBlocked() ? 1 : 0);
+                statement.executeUpdate();
+            }
+        });
+    }
+
+    public CompletableFuture<Void> queuePendingReward(UUID uuid, RewardItem reward, long now) {
+        return runAsync(() -> {
+            try (Connection connection = dataSource.getConnection();
+                 PreparedStatement statement = connection.prepareStatement(
+                         "INSERT INTO pending_rewards(uuid,material,amount,item_data,display_name,created_at) VALUES(?,?,?,?,?,?)")) {
+                statement.setString(1, uuid.toString());
+                statement.setString(2, reward.material().name());
+                statement.setInt(3, reward.amount());
+                statement.setString(4, ItemUtil.serialize(reward.singlePrototype()));
+                statement.setString(5, reward.displayName());
+                statement.setLong(6, now);
+                statement.executeUpdate();
+            }
+        });
+    }
+
+    public CompletableFuture<List<PendingReward>> loadAndClearPendingRewards(UUID uuid) {
+        return supplyAsync(() -> {
+            List<PendingReward> rewards = new ArrayList<>();
+            try (Connection connection = dataSource.getConnection()) {
+                try (PreparedStatement statement = connection.prepareStatement(
+                        "SELECT id, material, amount, item_data, display_name FROM pending_rewards WHERE uuid=?")) {
+                    statement.setString(1, uuid.toString());
+                    try (ResultSet resultSet = statement.executeQuery()) {
+                        while (resultSet.next()) {
+                            Material material = Material.matchMaterial(resultSet.getString("material"));
+                            if (material == null) {
+                                material = Material.EMERALD;
+                            }
+                            ItemStack prototype = ItemUtil.deserialize(resultSet.getString("item_data"), material);
+                            String displayName = resultSet.getString("display_name");
+                            if (displayName == null || displayName.isBlank()) {
+                                displayName = ItemUtil.readableName(prototype);
+                            }
+                            rewards.add(new PendingReward(resultSet.getLong("id"), uuid,
+                                    new RewardItem(material, resultSet.getInt("amount"), prototype, displayName)));
+                        }
+                    }
+                }
+                try (PreparedStatement delete = connection.prepareStatement("DELETE FROM pending_rewards WHERE uuid=?")) {
+                    delete.setString(1, uuid.toString());
+                    delete.executeUpdate();
+                }
+            }
+            return rewards;
+        });
+    }
+
+    public CompletableFuture<Void> updateRewardAmountAndExpiry(long bountyId, int newAmount, long newExpiresAt, int extendedDays) {
+        return runAsync(() -> {
+            try (Connection connection = dataSource.getConnection()) {
+                connection.setAutoCommit(false);
+                try (PreparedStatement bountyStatement = connection.prepareStatement(
+                        "UPDATE bounties SET expires_at=?, extended_days=? WHERE id=?");
+                     PreparedStatement rewardStatement = connection.prepareStatement(
+                             "UPDATE item_rewards SET amount=? WHERE bounty_id=?")) {
+                    bountyStatement.setLong(1, newExpiresAt);
+                    bountyStatement.setInt(2, extendedDays);
+                    bountyStatement.setLong(3, bountyId);
+                    bountyStatement.executeUpdate();
+                    rewardStatement.setInt(1, newAmount);
+                    rewardStatement.setLong(2, bountyId);
+                    rewardStatement.executeUpdate();
+                    connection.commit();
+                } catch (SQLException exception) {
+                    connection.rollback();
+                    throw exception;
+                } finally {
+                    connection.setAutoCommit(true);
+                }
+            }
+        });
+    }
+
     public CompletableFuture<Void> checkpoint() {
         return runAsync(() -> {
             try (Connection connection = dataSource.getConnection(); Statement statement = connection.createStatement()) {
@@ -299,7 +459,8 @@ public final class DatabaseManager {
                 new RewardItem(material, amount, prototype, displayName),
                 resultSet.getLong("created_at"),
                 nullableLong(resultSet, "expires_at"),
-                BountyStatus.valueOf(resultSet.getString("status"))
+                BountyStatus.valueOf(resultSet.getString("status")),
+                resultSet.getInt("extended_days")
         );
     }
 

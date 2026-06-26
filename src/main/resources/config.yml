@@ -11,6 +11,9 @@ creation:
   material: EMERALD
   amount: 1
   duration-days: 7
+  base-duration-hours: 72 # base bounty lifetime before any extension
+  extend-cost-percent: 5 # % of reward added per +1 day extension
+  max-duration-days: 10 # absolute cap including extensions
   same-target-cooldown-days: 3
   target-min-account-age-days: 3
   max-active-by-player: 5
@@ -25,9 +28,48 @@ clan-bounty:
   max-targets: 10
   per-player-cooldown-hours: 24
   duration-days: 7
+  base-duration-hours: 168
+  extend-cost-percent: 7
+  max-duration-days: 12
 
 server-bounty:
   max-hunters: 25
+  offline-freeze-days: 3
+  offline-delete-days: 180 # ~6 months
+  escalation-percent-per-3-days: 1
+  escalation-cap-percent: 30
+
+economy:
+  # Penalty withheld ("forfeited to the server") when a creator cancels their own bounty early.
+  cancel-penalty-percent: 35
+  # Penalty withheld when a bounty resolves naturally (expires) without being claimed.
+  expiry-penalty-percent: 35
+  # Penalty withheld when a bounty is deleted because its target has been offline too long.
+  offline-delete-penalty-percent: 10
+  # Hunter reward modifier based on rating (0-5 scale, default 2.5). At/above this rating the
+  # hunter gets a bonus, scaled linearly up to rating-bonus-cap-percent at rating 5.0.
+  rating-bonus-threshold: 4.0
+  rating-bonus-cap-percent: 20
+  # At/below this rating the hunter's reward is penalized, scaled linearly down to
+  # rating-penalty-cap-percent at rating 0.0.
+  rating-penalty-threshold: 1.0
+  rating-penalty-cap-percent: 20
+  # TODO: forfeited/withheld percentages above currently have nowhere real to go since the
+  # plugin has no internal currency or bank - the withheld portion of the reward is simply not
+  # paid out (destroyed). Revisit once ItemsAdder-based economy/value integration lands so this
+  # can flow into a real sink (server fund, ItemsAdder currency, etc).
+
+offline:
+  # Player/clan bounties: target offline this long -> bounty is frozen (hunters can't accept).
+  freeze-days: 2
+  # Player/clan bounties: target offline this long -> bounty is deleted and refunded
+  # (minus economy.offline-delete-penalty-percent) to the creator.
+  delete-days: 5
+
+citizens:
+  # Bound via /lovehunt npc bind (look at the NPC first). -1 means unbound.
+  turn-in-npc-id: -1
+  turn-in-npc-name: ""
 
 gui:
   main-title: "<dark_gray>LoveHunt"

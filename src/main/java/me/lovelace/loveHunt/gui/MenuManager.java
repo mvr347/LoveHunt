@@ -6,6 +6,7 @@ import me.lovelace.loveHunt.config.Settings;
 import me.lovelace.loveHunt.model.Bounty;
 import me.lovelace.loveHunt.model.BountyType;
 import me.lovelace.loveHunt.model.CreateSession;
+import me.lovelace.loveHunt.model.HunterRating;
 import me.lovelace.loveHunt.model.SortMode;
 import me.lovelace.loveHunt.model.TypeFilter;
 import me.lovelace.loveHunt.service.BountyService;
@@ -41,6 +42,15 @@ public final class MenuManager {
     private static final int MAIN_SIZE = 27;
     private static final int MINE_MAIN_BUTTON = 11;
     private static final int ALL_MAIN_BUTTON = 15;
+    private static final int STATS_MAIN_BUTTON = 13;
+
+    private static final int MANAGE_SIZE = 54;
+    private static final int MANAGE_BACK = 0;
+    private static final int MANAGE_TARGET = 4;
+    private static final int MANAGE_CANCEL = 8;
+    private static final int MANAGE_EXTEND = 49;
+    private static final int MANAGE_HUNTERS_START = 9;
+    private static final int MANAGE_HUNTERS_END = 45;
 
     private final JavaPlugin plugin;
     private final Settings settings;
@@ -63,6 +73,7 @@ public final class MenuManager {
         fill(inventory);
         inventory.setItem(MINE_MAIN_BUTTON, button("gui.items.my-bounties", Material.PLAYER_HEAD, "heads.my-bounties-base64", lang.component("gui.main.mine")));
         inventory.setItem(ALL_MAIN_BUTTON, button("gui.items.all-bounties", Material.COMPASS, "heads.all-bounties-base64", lang.component("gui.main.all")));
+        inventory.setItem(STATS_MAIN_BUTTON, statsButton(player));
         player.openInventory(inventory);
     }
 
@@ -143,6 +154,34 @@ public final class MenuManager {
         player.openInventory(inventory);
     }
 
+    public void openManage(Player player, LoveHuntHolder origin, Bounty bounty) {
+        LoveHuntHolder holder = new LoveHuntHolder(MenuType.MANAGE, origin.returnType(), origin.page(), origin.sortMode(), origin.typeFilter(),
+                origin.onlyMyClan(), origin.onlineOnly(), origin.search(), null, bounty.id());
+        Inventory inventory = Bukkit.createInventory(holder, MANAGE_SIZE, lang.component("gui.manage-title"));
+        holder.inventory(inventory);
+        fill(inventory);
+        inventory.setItem(MANAGE_BACK, backButton());
+        inventory.setItem(MANAGE_TARGET, bountyHead(bounty, player));
+        inventory.setItem(MANAGE_CANCEL, cancelOrderButton());
+        if (bounty.type() == BountyType.PLAYER || bounty.type() == BountyType.CLAN) {
+            inventory.setItem(MANAGE_EXTEND, extendButton(bounty));
+        }
+        List<UUID> hunters = bountyService.huntersOf(bounty.id());
+        if (hunters.isEmpty()) {
+            inventory.setItem((MANAGE_HUNTERS_START + MANAGE_HUNTERS_END) / 2, named(Material.GRAY_DYE, lang.component("gui.manage-no-hunters")));
+        } else {
+            int slot = MANAGE_HUNTERS_START;
+            for (UUID hunterUuid : hunters) {
+                if (slot >= MANAGE_HUNTERS_END) {
+                    break;
+                }
+                inventory.setItem(slot, hunterHead(hunterUuid));
+                slot++;
+            }
+        }
+        player.openInventory(inventory);
+    }
+
     public void beginCreate(Player player) {
         player.closeInventory();
         inputs.put(player.getUniqueId(), new PlayerInput(InputMode.CREATE_TARGET, MenuType.MAIN, 0, SortMode.DATE, TypeFilter.ALL, false, false));
@@ -203,6 +242,7 @@ public final class MenuManager {
             case CONFIRM_CREATE -> handleCreateConfirm(player, holder, slot);
             case CONFIRM_ACCEPT -> handleAcceptConfirm(player, holder, slot);
             case CONFIRM_CANCEL -> handleCancelConfirm(player, holder, slot);
+            case MANAGE -> handleManage(player, holder, slot);
         }
     }
 
@@ -281,11 +321,38 @@ public final class MenuManager {
             reopen(player, origin);
             return;
         }
-        boolean own = bounty.type() == BountyType.PLAYER && bounty.creatorUuid() != null && bounty.creatorUuid().equals(player.getUniqueId());
+        boolean own = (bounty.type() == BountyType.PLAYER || bounty.type() == BountyType.CLAN)
+                && bounty.creatorUuid() != null && bounty.creatorUuid().equals(player.getUniqueId());
         if (own) {
-            openCancelConfirm(player, origin, bounty);
+            openManage(player, origin, bounty);
         } else {
             openAcceptConfirm(player, origin, bounty);
+        }
+    }
+
+    private void handleManage(Player player, LoveHuntHolder holder, int slot) {
+        if (slot == MANAGE_BACK) {
+            reopen(player, holder);
+            return;
+        }
+        Bounty bounty = bountyService.get(holder.bountyId());
+        if (bounty == null) {
+            lang.send(player, "bounty-unavailable");
+            reopen(player, holder);
+            return;
+        }
+        if (slot == MANAGE_CANCEL) {
+            openCancelConfirm(player, holder, bounty);
+            return;
+        }
+        if (slot == MANAGE_EXTEND) {
+            BountyService.ExtendResult result = bountyService.extend(player, bounty);
+            if (!result.success()) {
+                lang.send(player, result.messageKey(), result.placeholders());
+                return;
+            }
+            lang.send(player, "extend-success", lang.placeholders("amount", String.valueOf(result.cost()), "item", result.bounty().reward().displayName()));
+            openManage(player, holder, result.bounty());
         }
     }
 
@@ -333,6 +400,10 @@ public final class MenuManager {
         }
         if (bountyService.hasAccepted(player.getUniqueId(), bounty.id())) {
             lang.send(player, "already-accepted");
+            return;
+        }
+        if (bountyService.isFrozen(bounty)) {
+            lang.send(player, "bounty-frozen");
             return;
         }
         bountyService.accept(player, bounty).thenAccept(success -> Bukkit.getScheduler().runTask(plugin, () -> {
@@ -562,6 +633,52 @@ public final class MenuManager {
         return button("gui.items.cancel-order", Material.RED_CONCRETE, "heads.cancel-order-base64", lang.component("gui.confirm.cancel-order"));
     }
 
+    private ItemStack statsButton(Player player) {
+        HunterRating rating = bountyService.ratings().get(player.getUniqueId());
+        ItemStack head = HeadUtil.playerHead(player);
+        ItemMeta meta = head.getItemMeta();
+        if (meta != null) {
+            meta.displayName(lang.component("gui.main.stats").decoration(TextDecoration.ITALIC, false));
+            meta.lore(List.of(
+                    lang.legacy("§7Рейтинг: §e" + String.format(Locale.ROOT, "%.1f", rating.rating()) + " / 5.0"),
+                    lang.legacy("§7Выполнено: §a" + rating.completed()),
+                    lang.legacy("§7Провалено: §c" + rating.failed())
+            ));
+            meta.addItemFlags(ItemFlag.values());
+            head.setItemMeta(meta);
+        }
+        return head;
+    }
+
+    private ItemStack hunterHead(UUID hunterUuid) {
+        OfflinePlayer hunter = Bukkit.getOfflinePlayer(hunterUuid);
+        HunterRating rating = bountyService.ratings().get(hunterUuid);
+        ItemStack head = HeadUtil.playerHead(hunter);
+        ItemMeta meta = head.getItemMeta();
+        if (meta != null) {
+            String name = hunter.getName() == null ? hunterUuid.toString() : hunter.getName();
+            meta.displayName(lang.legacy("§e" + name).decoration(TextDecoration.ITALIC, false));
+            meta.lore(List.of(
+                    lang.legacy("§7Онлайн: " + (hunter.isOnline() ? "§aДа" : "§cНет")),
+                    lang.legacy("§7Рейтинг: §e" + String.format(Locale.ROOT, "%.1f", rating.rating()) + " / 5.0"),
+                    lang.legacy("§7Выполнено: §a" + rating.completed()),
+                    lang.legacy("§7Провалено: §c" + rating.failed())
+            ));
+            meta.addItemFlags(ItemFlag.values());
+            head.setItemMeta(meta);
+        }
+        return head;
+    }
+
+    private ItemStack extendButton(Bounty bounty) {
+        boolean clan = bounty.type() == BountyType.CLAN;
+        int costPercent = clan ? settings.clanExtendCostPercent() : settings.playerExtendCostPercent();
+        int cost = Math.max(1, (int) Math.ceil(bounty.reward().amount() * (costPercent / 100.0)));
+        ItemStack item = named(Material.CLOCK, lang.component("gui.manage-extend"));
+        return withLore(item, lang.component("gui.manage-extend-hint",
+                lang.placeholders("amount", String.valueOf(cost), "item", bounty.reward().displayName()), false));
+    }
+
     private ItemStack withLore(ItemStack item, Component lore) {
         ItemMeta meta = item.getItemMeta();
         if (meta != null) {
@@ -592,9 +709,10 @@ public final class MenuManager {
                     lang.legacy("§7Охотников: §f" + bountyService.hunterCount(bounty.id())),
                     lang.legacy("§8ID: #" + bounty.id())
             ));
-            boolean own = bounty.type() == BountyType.PLAYER && bounty.creatorUuid() != null && bounty.creatorUuid().equals(viewer.getUniqueId());
+            boolean own = (bounty.type() == BountyType.PLAYER || bounty.type() == BountyType.CLAN)
+                    && bounty.creatorUuid() != null && bounty.creatorUuid().equals(viewer.getUniqueId());
             if (own) {
-                lore.add(lang.legacy("§eВаш заказ — нажмите для отмены"));
+                lore.add(lang.legacy("§eВаш заказ — нажмите для управления"));
             } else if (bountyService.hasAccepted(viewer.getUniqueId(), bounty.id())) {
                 lore.add(lang.legacy("§aВы уже приняли этот розыск"));
             }

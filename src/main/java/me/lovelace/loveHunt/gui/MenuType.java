@@ -6,5 +6,6 @@ public enum MenuType {
     ALL,
     CONFIRM_CREATE,
     CONFIRM_ACCEPT,
-    CONFIRM_CANCEL
+    CONFIRM_CANCEL,
+    MANAGE
 }
