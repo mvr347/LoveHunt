@@ -1,0 +1,58 @@
+database:
+  file: lovehunt.db
+  pool-size: 4
+
+performance:
+  autosave-minutes: 5
+  command-cooldown-ms: 700
+  compass-update-seconds: 8
+
+creation:
+  material: EMERALD
+  amount: 1
+  duration-days: 7
+  same-target-cooldown-days: 3
+  target-min-account-age-days: 3
+  max-active-by-player: 5
+
+  reward-source: HAND # HAND or CONFIG
+  default-reward:
+    material: EMERALD
+    amount: 64
+  minimum-reward:
+clan-bounty:
+  enabled: true
+  max-targets: 10
+  per-player-cooldown-hours: 24
+  duration-days: 7
+
+server-bounty:
+  max-hunters: 25
+
+gui:
+  main-title: "<dark_gray>LoveHunt"
+  all-title: "<dark_gray>Все розыски"
+  mine-title: "<dark_gray>Мои розыски"
+  confirm-create-title: "<dark_gray>Подтверждение заказа"
+  confirm-accept-title: "<dark_gray>Принять розыск"
+  items:
+    filler: BLACK_STAINED_GLASS_PANE
+    all-bounties: COMPASS
+    my-bounties: PLAYER_HEAD
+    create-bounty: WRITABLE_BOOK
+    sort-name: NAME_TAG
+    sort-reward: EMERALD
+    sort-date: CLOCK
+    only-mine: CHEST
+    reset: BARRIER
+    search: OAK_SIGN
+    previous: ARROW
+    next: ARROW
+    confirm: LIME_CONCRETE
+    cancel: RED_CONCRETE
+
+heads:
+  use-base64-for-buttons: false
+  all-bounties-base64: ""
+  my-bounties-base64: ""
+  create-bounty-base64: ""

@@ -1,0 +1,20 @@
+name: LoveHunt
+version: '${version}'
+main: me.lovelace.loveHunt.LoveHunt
+api-version: '1.21.11'
+author: Lovelace
+description: Item-based bounty hunting for Paper/Purpur.
+softdepend:
+  - Clans
+commands:
+  lovehunt:
+    description: Opens LoveHunt menu.
+    aliases:
+      - hunt
+      - lh
+    usage: /<command>
+permissions:
+  lovehunt.use:
+    default: true
+  lovehunt.admin:
+    default: op
