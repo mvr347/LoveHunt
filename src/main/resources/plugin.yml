@@ -13,6 +13,9 @@ commands:
       - hunt
       - lh
     usage: /<command>
+  hunts:
+    description: Opens the all-orders LoveHunt screen directly.
+    usage: /<command>
 permissions:
   lovehunt.use:
     default: true

@@ -40,19 +40,33 @@ gui:
     all-bounties: COMPASS
     my-bounties: PLAYER_HEAD
     create-bounty: WRITABLE_BOOK
-    sort-name: NAME_TAG
-    sort-reward: EMERALD
-    sort-date: CLOCK
-    only-mine: CHEST
+    sort: NAME_TAG
+    price: GOLD_NUGGET
+    type-filter: COMPASS
+    clan-filter: SHIELD
+    online-filter: ENDER_EYE
     reset: BARRIER
     search: OAK_SIGN
     previous: ARROW
     next: ARROW
+    back: ARROW
     confirm: LIME_CONCRETE
     cancel: RED_CONCRETE
+    cancel-order: RED_CONCRETE
 
 heads:
   use-base64-for-buttons: false
   all-bounties-base64: ""
   my-bounties-base64: ""
   create-bounty-base64: ""
+  sort-base64: ""
+  price-base64: ""
+  type-filter-base64: ""
+  clan-filter-base64: ""
+  online-filter-base64: ""
+  search-base64: ""
+  reset-base64: ""
+  previous-base64: ""
+  next-base64: ""
+  back-base64: ""
+  cancel-order-base64: ""

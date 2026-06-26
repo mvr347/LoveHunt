@@ -61,6 +61,9 @@ public final class BountyService {
 
     public CompletableFuture<Void> load() {
         long now = System.currentTimeMillis();
+        // TODO: bounties cancelled here for natural expiry should refund 70% of the reward to their
+        // creator (30% penalty). Needs offline-safe delivery (creator may not be online) plus the same
+        // item-value/economy integration as the manual-cancel penalty above, so no refund happens yet.
         return database.cleanupExpired(now)
                 .thenCompose(ignored -> database.loadActiveBounties())
                 .thenCombine(database.loadCooldowns(), (bounties, loadedCooldowns) -> {
@@ -125,6 +128,14 @@ public final class BountyService {
 
     public Set<Long> acceptedBy(UUID hunter) {
         return Set.copyOf(acceptedByHunter.getOrDefault(hunter, Set.of()));
+    }
+
+    public int hunterCount(long bountyId) {
+        return huntersByBounty.getOrDefault(bountyId, Set.of()).size();
+    }
+
+    public LoveHuntClans clans() {
+        return clans;
     }
 
     public CreateCheck validateCreation(Player creator, String targetName) {
@@ -241,6 +252,27 @@ public final class BountyService {
         }
         removeCached(bounty, BountyStatus.CANCELLED);
         database.updateStatus(bounty.id(), BountyStatus.CANCELLED);
+    }
+
+    public boolean cancelByCreator(Player creator, Bounty bounty) {
+        if (bounty == null || bounty.status() != BountyStatus.ACTIVE || !bountiesById.containsKey(bounty.id())) {
+            return false;
+        }
+        if (bounty.type() != BountyType.PLAYER || bounty.creatorUuid() == null || !bounty.creatorUuid().equals(creator.getUniqueId())) {
+            return false;
+        }
+        BountyCancelEvent event = new BountyCancelEvent(bounty);
+        Bukkit.getPluginManager().callEvent(event);
+        if (event.isCancelled()) {
+            return false;
+        }
+        removeCached(bounty, BountyStatus.CANCELLED);
+        database.updateStatus(bounty.id(), BountyStatus.CANCELLED);
+        // TODO: withhold a 40% cancellation penalty (and 30% on natural expiry) once reward value/economy
+        // (ItemsAdder) integration lands. Non-stackable/unique rewards need a value model before a partial
+        // refund is possible, so the full reward is returned for now.
+        giveOrDrop(creator, bounty.reward());
+        return true;
     }
 
     public CompletableFuture<Bounty> createClanBounty(UUID creatorUuid, String creatorName, UUID targetUuid, String targetName, RewardItem reward) {

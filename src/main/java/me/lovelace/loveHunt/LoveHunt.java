@@ -104,6 +104,12 @@ public final class LoveHunt extends JavaPlugin {
         }
         command.setExecutor(executor);
         command.setTabCompleter(executor);
+        PluginCommand hunts = getCommand("hunts");
+        if (hunts == null) {
+            throw new IllegalStateException("Command hunts is not defined in plugin.yml");
+        }
+        hunts.setExecutor(executor);
+        hunts.setTabCompleter(executor);
     }
 
     private LoveHuntClans resolveClansProvider() {

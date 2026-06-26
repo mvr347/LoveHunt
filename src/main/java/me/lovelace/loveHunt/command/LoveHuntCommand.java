@@ -3,6 +3,8 @@ package me.lovelace.loveHunt.command;
 import me.lovelace.loveHunt.config.Lang;
 import me.lovelace.loveHunt.config.Settings;
 import me.lovelace.loveHunt.gui.MenuManager;
+import me.lovelace.loveHunt.model.SortMode;
+import me.lovelace.loveHunt.model.TypeFilter;
 import me.lovelace.loveHunt.service.BountyService;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
@@ -55,7 +57,11 @@ public final class LoveHuntCommand implements CommandExecutor, TabCompleter {
             return true;
         }
         commandCooldowns.put(player.getUniqueId(), now);
-        menuManager.openMain(player);
+        if (label.equalsIgnoreCase("hunts")) {
+            menuManager.openAll(player, 0, SortMode.DATE, TypeFilter.ALL, false, false, null);
+        } else {
+            menuManager.openMain(player);
+        }
         return true;
     }
 
