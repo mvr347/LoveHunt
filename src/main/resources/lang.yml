@@ -60,6 +60,12 @@ turnin-wrong-item: "<red>У вас в руке нет трофея для сда
 turnin-not-your-bounty: "<red>Этот трофей не относится к вашему розыску."
 turnin-bounty-gone: "<red>Этот розыск уже недоступен."
 turnin-success: "<green>Вы сдали трофей и завершили розыск на {target}!"
+stats-usage: "<red>Использование: /lovehunt stats <игрок>"
+stats-header: "<gold>Статистика охотника {player}:"
+stats-line: "<gray> Рейтинг: <yellow>{rating}</yellow> / 5.0  Выполнено: <green>{completed}</green>  Провалено: <red>{failed}</red>"
+top-empty: "<yellow>Пока нет ни одного охотника со статистикой."
+top-header: "<gold>Топ охотников LoveHunt:"
+top-entry: "<gray>{rank}. <yellow>{player}</yellow> — рейтинг <gold>{rating}</gold>, выполнено <green>{completed}</green>, провалено <red>{failed}</red>"
 
 gui:
   back: "<yellow>Назад"

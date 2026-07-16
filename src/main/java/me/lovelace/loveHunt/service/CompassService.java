@@ -3,9 +3,14 @@ package me.lovelace.loveHunt.service;
 import me.lovelace.loveHunt.config.Settings;
 import me.lovelace.loveHunt.model.Bounty;
 import org.bukkit.Bukkit;
+import org.bukkit.Location;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitTask;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
 public final class CompassService {
     private final JavaPlugin plugin;
@@ -32,9 +37,19 @@ public final class CompassService {
         }
     }
 
+    /**
+     * Points each online hunter's compass at the nearest of their currently valid bounty targets
+     * (deterministic - ties broken by lowest bounty id), or resets it back to the world spawn
+     * when none of their accepted bounties has a valid target anymore (target offline or in a
+     * different world), so the compass never stays stuck pointing at a stale location.
+     */
     private void tick() {
         for (Player hunter : Bukkit.getOnlinePlayers()) {
-            for (long bountyId : bountyService.acceptedBy(hunter.getUniqueId())) {
+            List<Long> bountyIds = new ArrayList<>(bountyService.acceptedBy(hunter.getUniqueId()));
+            Collections.sort(bountyIds);
+            Location nearest = null;
+            double nearestDistanceSq = Double.MAX_VALUE;
+            for (long bountyId : bountyIds) {
                 Bounty bounty = bountyService.get(bountyId);
                 if (bounty == null) {
                     continue;
@@ -43,9 +58,13 @@ public final class CompassService {
                 if (target == null || !target.getWorld().equals(hunter.getWorld())) {
                     continue;
                 }
-                hunter.setCompassTarget(target.getLocation());
-                break;
+                double distanceSq = target.getLocation().distanceSquared(hunter.getLocation());
+                if (distanceSq < nearestDistanceSq) {
+                    nearestDistanceSq = distanceSq;
+                    nearest = target.getLocation();
+                }
             }
+            hunter.setCompassTarget(nearest != null ? nearest : hunter.getWorld().getSpawnLocation());
         }
     }
 }

@@ -237,7 +237,12 @@ public final class BountyService {
             return CompletableFuture.completedFuture(false);
         }
         Set<UUID> hunters = huntersByBounty.computeIfAbsent(bounty.id(), ignored -> ConcurrentHashMap.newKeySet());
-        if (bounty.type() == BountyType.SERVER && hunters.size() >= settings.serverMaxHunters()) {
+        int maxHunters = switch (bounty.type()) {
+            case SERVER -> settings.serverMaxHunters();
+            case CLAN -> settings.clanMaxHunters();
+            case PLAYER -> settings.playerMaxHunters();
+        };
+        if (hunters.size() >= maxHunters) {
             return CompletableFuture.completedFuture(false);
         }
         return database.insertHunter(bounty.id(), hunter.getUniqueId(), System.currentTimeMillis()).thenApply(inserted -> {
