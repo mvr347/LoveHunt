@@ -731,7 +731,7 @@ public final class MenuManager {
             meta.lore(List.of(
                     lang.legacy("§7Цель: §6" + session.targetName()),
                     lang.legacy("§7Награда: §e" + session.reward().amount() + "× " + session.reward().displayName()),
-                    lang.legacy("§7Срок действия: §f" + Duration.ofDays(settings.creationDurationDays()).toDays() + " дней")
+                    lang.legacy("§7Срок действия: §f" + Duration.ofHours(settings.playerBaseDurationHours()).toDays() + " дней")
             ));
             item.setItemMeta(meta);
         }

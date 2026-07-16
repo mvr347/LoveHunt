@@ -20,14 +20,14 @@ public final class Settings {
     private String rewardSource;
     private RewardItem defaultReward;
     private RewardItem minimumReward;
-    private int creationDurationDays;
     private int sameTargetCooldownDays;
     private int targetMinAccountAgeDays;
     private int maxActiveByPlayer;
     private boolean clanBountyEnabled;
     private int clanMaxTargets;
     private int clanCooldownHours;
-    private int clanDurationDays;
+    private int playerMaxHunters;
+    private int clanMaxHunters;
     private int serverMaxHunters;
 
     private int cancelPenaltyPercent;
@@ -68,14 +68,14 @@ public final class Settings {
         rewardSource = config.getString("creation.reward-source", "HAND").toUpperCase(Locale.ROOT);
         defaultReward = rewardFromConfig("creation.default-reward", Material.EMERALD, 64);
         minimumReward = rewardFromConfig("creation.minimum-reward", Material.EMERALD, 1);
-        creationDurationDays = Math.max(1, config.getInt("creation.duration-days", 7));
         sameTargetCooldownDays = Math.max(0, config.getInt("creation.same-target-cooldown-days", 3));
         targetMinAccountAgeDays = Math.max(0, config.getInt("creation.target-min-account-age-days", 3));
         maxActiveByPlayer = Math.max(1, config.getInt("creation.max-active-by-player", 5));
+        playerMaxHunters = Math.max(1, config.getInt("creation.max-hunters", 25));
         clanBountyEnabled = config.getBoolean("clan-bounty.enabled", true);
         clanMaxTargets = Math.max(1, config.getInt("clan-bounty.max-targets", 10));
         clanCooldownHours = Math.max(1, config.getInt("clan-bounty.per-player-cooldown-hours", 24));
-        clanDurationDays = Math.max(1, config.getInt("clan-bounty.duration-days", 7));
+        clanMaxHunters = Math.max(1, config.getInt("clan-bounty.max-hunters", 25));
         serverMaxHunters = Math.max(1, config.getInt("server-bounty.max-hunters", 25));
 
         cancelPenaltyPercent = clampPercent(config.getInt("economy.cancel-penalty-percent", 35));
@@ -148,10 +148,6 @@ public final class Settings {
         return minimumReward;
     }
 
-    public int creationDurationDays() {
-        return creationDurationDays;
-    }
-
     public int sameTargetCooldownDays() {
         return sameTargetCooldownDays;
     }
@@ -176,8 +172,12 @@ public final class Settings {
         return clanCooldownHours;
     }
 
-    public int clanDurationDays() {
-        return clanDurationDays;
+    public int playerMaxHunters() {
+        return playerMaxHunters;
+    }
+
+    public int clanMaxHunters() {
+        return clanMaxHunters;
     }
 
     public int serverMaxHunters() {

@@ -10,13 +10,13 @@ performance:
 creation:
   material: EMERALD
   amount: 1
-  duration-days: 7
   base-duration-hours: 72 # base bounty lifetime before any extension
   extend-cost-percent: 5 # % of reward added per +1 day extension
   max-duration-days: 10 # absolute cap including extensions
   same-target-cooldown-days: 3
   target-min-account-age-days: 3
   max-active-by-player: 5
+  max-hunters: 25 # max hunters that may accept a single player bounty at once
 
   reward-source: HAND # HAND or CONFIG
   default-reward:
@@ -27,10 +27,10 @@ clan-bounty:
   enabled: true
   max-targets: 10
   per-player-cooldown-hours: 24
-  duration-days: 7
   base-duration-hours: 168
   extend-cost-percent: 7
   max-duration-days: 12
+  max-hunters: 25 # max hunters that may accept a single clan bounty at once
 
 server-bounty:
   max-hunters: 25
