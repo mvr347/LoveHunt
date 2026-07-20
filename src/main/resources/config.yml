@@ -111,4 +111,5 @@ heads:
   previous-base64: ""
   next-base64: ""
   back-base64: ""
+  close-base64: ""
   cancel-order-base64: ""

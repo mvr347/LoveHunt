@@ -74,6 +74,7 @@ public final class MenuManager {
         inventory.setItem(MINE_MAIN_BUTTON, button("gui.items.my-bounties", Material.PLAYER_HEAD, "heads.my-bounties-base64", lang.component("gui.main.mine")));
         inventory.setItem(ALL_MAIN_BUTTON, button("gui.items.all-bounties", Material.COMPASS, "heads.all-bounties-base64", lang.component("gui.main.all")));
         inventory.setItem(STATS_MAIN_BUTTON, statsButton(player));
+        inventory.setItem(MAIN_SIZE - 1, closeButton());
         player.openInventory(inventory);
     }
 
@@ -166,6 +167,7 @@ public final class MenuManager {
         if (bounty.type() == BountyType.PLAYER || bounty.type() == BountyType.CLAN) {
             inventory.setItem(MANAGE_EXTEND, extendButton(bounty));
         }
+        inventory.setItem(MANAGE_SIZE - 1, closeButton());
         List<UUID> hunters = bountyService.huntersOf(bounty.id());
         if (hunters.isEmpty()) {
             inventory.setItem((MANAGE_HUNTERS_START + MANAGE_HUNTERS_END) / 2, named(Material.GRAY_DYE, lang.component("gui.manage-no-hunters")));
@@ -251,6 +253,8 @@ public final class MenuManager {
             openMine(player, 0, SortMode.DATE, null);
         } else if (slot == ALL_MAIN_BUTTON) {
             openAll(player, 0, SortMode.DATE, TypeFilter.ALL, false, false, null);
+        } else if (slot == MAIN_SIZE - 1) {
+            player.closeInventory();
         }
     }
 
@@ -274,6 +278,8 @@ public final class MenuManager {
             beginCreate(player);
         } else if (slot == footerStart && holder.page() > 0) {
             openMine(player, holder.page() - 1, holder.sortMode(), holder.search());
+        } else if (slot == footerStart + 7) {
+            player.closeInventory();
         } else if (slot == footerStart + 8) {
             openMine(player, holder.page() + 1, holder.sortMode(), holder.search());
         }
@@ -309,6 +315,8 @@ public final class MenuManager {
             beginCreate(player);
         } else if (slot == footerStart && holder.page() > 0) {
             openAll(player, holder.page() - 1, holder.sortMode(), holder.typeFilter(), holder.onlyMyClan(), holder.onlineOnly(), holder.search());
+        } else if (slot == footerStart + 7) {
+            player.closeInventory();
         } else if (slot == footerStart + 8) {
             openAll(player, holder.page() + 1, holder.sortMode(), holder.typeFilter(), holder.onlyMyClan(), holder.onlineOnly(), holder.search());
         }
@@ -331,6 +339,10 @@ public final class MenuManager {
     }
 
     private void handleManage(Player player, LoveHuntHolder holder, int slot) {
+        if (slot == MANAGE_SIZE - 1) {
+            player.closeInventory();
+            return;
+        }
         if (slot == MANAGE_BACK) {
             reopen(player, holder);
             return;
@@ -540,6 +552,7 @@ public final class MenuManager {
         inventory.setItem(size - 9, button("gui.items.previous", Material.ARROW, "heads.previous-base64", lang.component("gui.all.previous")));
         inventory.setItem(size - 5, named(Material.PAPER, lang.component("gui.all.page",
                 lang.placeholders("page", slice.page() + 1, "pages", slice.totalPages()), false)));
+        inventory.setItem(size - 2, closeButton());
         inventory.setItem(size - 1, button("gui.items.next", Material.ARROW, "heads.next-base64", lang.component("gui.all.next")));
     }
 
@@ -623,6 +636,10 @@ public final class MenuManager {
 
     private ItemStack backButton() {
         return button("gui.items.back", Material.ARROW, "heads.back-base64", lang.component("gui.confirm.back"));
+    }
+
+    private ItemStack closeButton() {
+        return button("gui.items.close", Material.BARRIER, "heads.close-base64", lang.component("gui.close"));
     }
 
     private ItemStack createButton() {

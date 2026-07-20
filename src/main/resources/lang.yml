@@ -69,6 +69,7 @@ top-entry: "<gray>{rank}. <yellow>{player}</yellow> — рейтинг <gold>{ra
 
 gui:
   back: "<yellow>Назад"
+  close: "<red>Закрыть"
   create: "<green>Создать заказ"
   main:
     all: "<gold>Все розыски"
