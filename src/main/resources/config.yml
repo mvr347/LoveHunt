@@ -83,10 +83,8 @@ gui:
     my-bounties: PLAYER_HEAD
     create-bounty: WRITABLE_BOOK
     sort: NAME_TAG
-    price: GOLD_NUGGET
     type-filter: COMPASS
     clan-filter: SHIELD
-    online-filter: ENDER_EYE
     reset: BARRIER
     search: OAK_SIGN
     previous: ARROW
@@ -102,10 +100,8 @@ heads:
   my-bounties-base64: ""
   create-bounty-base64: ""
   sort-base64: ""
-  price-base64: ""
   type-filter-base64: ""
   clan-filter-base64: ""
-  online-filter-base64: ""
   search-base64: ""
   reset-base64: ""
   previous-base64: ""

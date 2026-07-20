@@ -42,7 +42,6 @@ public final class MenuManager {
     private static final int MAIN_SIZE = 27;
     private static final int MINE_MAIN_BUTTON = 11;
     private static final int ALL_MAIN_BUTTON = 15;
-    private static final int STATS_MAIN_BUTTON = 13;
 
     private static final int MANAGE_SIZE = 54;
     private static final int MANAGE_BACK = 0;
@@ -71,9 +70,9 @@ public final class MenuManager {
         Inventory inventory = Bukkit.createInventory(holder, MAIN_SIZE, lang.component("gui.main-title"));
         holder.inventory(inventory);
         fill(inventory);
+        inventory.setItem(0, statsButton(player));
         inventory.setItem(MINE_MAIN_BUTTON, button("gui.items.my-bounties", Material.PLAYER_HEAD, "heads.my-bounties-base64", lang.component("gui.main.mine")));
         inventory.setItem(ALL_MAIN_BUTTON, button("gui.items.all-bounties", Material.COMPASS, "heads.all-bounties-base64", lang.component("gui.main.all")));
-        inventory.setItem(STATS_MAIN_BUTTON, statsButton(player));
         inventory.setItem(MAIN_SIZE - 1, closeButton());
         player.openInventory(inventory);
     }
@@ -267,10 +266,8 @@ public final class MenuManager {
         if (slot == 0) {
             openMine(player, 0, nextSort(holder.sortMode()), holder.search());
         } else if (slot == 1) {
-            lang.send(player, "price-sort-soon");
-        } else if (slot == 5) {
             beginSearch(player, holder);
-        } else if (slot == 6) {
+        } else if (slot == 2) {
             openMine(player, 0, SortMode.DATE, null);
         } else if (slot == 7) {
             openMain(player);
@@ -294,20 +291,17 @@ public final class MenuManager {
         if (slot == 0) {
             openAll(player, 0, nextSort(holder.sortMode()), holder.typeFilter(), holder.onlyMyClan(), holder.onlineOnly(), holder.search());
         } else if (slot == 1) {
-            lang.send(player, "price-sort-soon");
-        } else if (slot == 2) {
             openAll(player, 0, holder.sortMode(), nextType(holder.typeFilter()), holder.onlyMyClan(), holder.onlineOnly(), holder.search());
-        } else if (slot == 3) {
-            if (!clanFilterAvailable(player)) {
+        } else if (slot == 2) {
+            if (!holder.onlyMyClan() && !clanFilterAvailable(player)) {
                 lang.send(player, "clan-filter-unavailable");
                 return;
             }
-            openAll(player, 0, holder.sortMode(), holder.typeFilter(), !holder.onlyMyClan(), holder.onlineOnly(), holder.search());
-        } else if (slot == 4) {
-            openAll(player, 0, holder.sortMode(), holder.typeFilter(), holder.onlyMyClan(), !holder.onlineOnly(), holder.search());
-        } else if (slot == 5) {
+            boolean[] next = nextClanOnline(holder.onlyMyClan(), holder.onlineOnly());
+            openAll(player, 0, holder.sortMode(), holder.typeFilter(), next[0], next[1], holder.search());
+        } else if (slot == 3) {
             beginSearch(player, holder);
-        } else if (slot == 6) {
+        } else if (slot == 4) {
             openAll(player, 0, SortMode.DATE, TypeFilter.ALL, false, false, null);
         } else if (slot == 7) {
             openMain(player);
@@ -521,6 +515,15 @@ public final class MenuManager {
         return values[(current.ordinal() + 1) % values.length];
     }
 
+    // Объединённый переключатель "мой клан / только онлайн" — цикл из 4 состояний одной кнопкой
+    // вместо двух отдельных (off -> клан -> онлайн -> клан+онлайн -> off).
+    private boolean[] nextClanOnline(boolean onlyMyClan, boolean onlineOnly) {
+        if (!onlyMyClan && !onlineOnly) return new boolean[]{true, false};
+        if (onlyMyClan && !onlineOnly) return new boolean[]{false, true};
+        if (!onlyMyClan && onlineOnly) return new boolean[]{true, true};
+        return new boolean[]{false, false};
+    }
+
     private boolean clanFilterAvailable(Player player) {
         LoveHuntClans clans = bountyService.clans();
         return clans != null && clans.isAvailable() && clans.getClanTag(player.getUniqueId()) != null;
@@ -528,21 +531,18 @@ public final class MenuManager {
 
     private void addMineHeader(Inventory inventory, SortMode sortMode) {
         inventory.setItem(0, sortButton(sortMode));
-        inventory.setItem(1, priceButton());
-        inventory.setItem(5, button("gui.items.search", Material.OAK_SIGN, "heads.search-base64", lang.component("gui.all.search")));
-        inventory.setItem(6, button("gui.items.reset", Material.BARRIER, "heads.reset-base64", lang.component("gui.all.reset")));
+        inventory.setItem(1, button("gui.items.search", Material.OAK_SIGN, "heads.search-base64", lang.component("gui.all.search")));
+        inventory.setItem(2, button("gui.items.reset", Material.BARRIER, "heads.reset-base64", lang.component("gui.all.reset")));
         inventory.setItem(7, backButton());
         inventory.setItem(8, createButton());
     }
 
     private void addAllHeader(Inventory inventory, SortMode sortMode, TypeFilter typeFilter, boolean onlyMyClan, boolean onlineOnly, Player viewer) {
         inventory.setItem(0, sortButton(sortMode));
-        inventory.setItem(1, priceButton());
-        inventory.setItem(2, typeButton(typeFilter));
-        inventory.setItem(3, clanFilterButton(onlyMyClan, viewer));
-        inventory.setItem(4, onlineFilterButton(onlineOnly));
-        inventory.setItem(5, button("gui.items.search", Material.OAK_SIGN, "heads.search-base64", lang.component("gui.all.search")));
-        inventory.setItem(6, button("gui.items.reset", Material.BARRIER, "heads.reset-base64", lang.component("gui.all.reset")));
+        inventory.setItem(1, typeButton(typeFilter));
+        inventory.setItem(2, clanOnlineButton(onlyMyClan, onlineOnly, viewer));
+        inventory.setItem(3, button("gui.items.search", Material.OAK_SIGN, "heads.search-base64", lang.component("gui.all.search")));
+        inventory.setItem(4, button("gui.items.reset", Material.BARRIER, "heads.reset-base64", lang.component("gui.all.reset")));
         inventory.setItem(7, backButton());
         inventory.setItem(8, createButton());
     }
@@ -604,11 +604,6 @@ public final class MenuManager {
         return withLore(item, lang.component("gui.all.sort-hint"));
     }
 
-    private ItemStack priceButton() {
-        ItemStack item = button("gui.items.price", Material.GOLD_NUGGET, "heads.price-base64", lang.component("gui.all.sort-price"));
-        return withLore(item, lang.component("gui.all.sort-price-hint"));
-    }
-
     private ItemStack typeButton(TypeFilter typeFilter) {
         String labelKey = switch (typeFilter) {
             case ALL -> "gui.all.type-all";
@@ -620,18 +615,20 @@ public final class MenuManager {
         return withLore(item, lang.component("gui.all.type-hint"));
     }
 
-    private ItemStack clanFilterButton(boolean onlyMyClan, Player viewer) {
-        String labelKey = onlyMyClan ? "gui.all.clan-filter-on" : "gui.all.clan-filter-off";
+    // Объединяет бывшие clan-filter/online-filter в одну кнопку с 4 состояниями
+    // (см. nextClanOnline) — было две отдельные кнопки, делающие пересекающийся выбор.
+    private ItemStack clanOnlineButton(boolean onlyMyClan, boolean onlineOnly, Player viewer) {
+        String labelKey;
+        if (onlyMyClan && onlineOnly) labelKey = "gui.all.clan-online-both";
+        else if (onlyMyClan) labelKey = "gui.all.clan-online-clan";
+        else if (onlineOnly) labelKey = "gui.all.clan-online-online";
+        else labelKey = "gui.all.clan-online-off";
+
         ItemStack item = button("gui.items.clan-filter", Material.SHIELD, "heads.clan-filter-base64", lang.component(labelKey));
         if (!clanFilterAvailable(viewer)) {
             return withLore(item, lang.component("gui.all.clan-filter-unavailable"));
         }
         return item;
-    }
-
-    private ItemStack onlineFilterButton(boolean onlineOnly) {
-        String labelKey = onlineOnly ? "gui.all.online-filter-on" : "gui.all.online-filter-off";
-        return button("gui.items.online-filter", Material.ENDER_EYE, "heads.online-filter-base64", lang.component(labelKey));
     }
 
     private ItemStack backButton() {
