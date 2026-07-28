@@ -53,7 +53,9 @@ public final class CitizensIntegration {
         if (!isAvailable() || player == null) {
             return null;
         }
-        RayTraceResult trace = player.rayTraceEntities(distance);
+        // rayTraceEntities принимает int, поэтому дробную дистанцию округляем вверх - без
+        // явного приведения класс не компилируется (lossy conversion from double to int).
+        RayTraceResult trace = player.rayTraceEntities((int) Math.ceil(distance));
         if (trace == null) {
             return null;
         }
