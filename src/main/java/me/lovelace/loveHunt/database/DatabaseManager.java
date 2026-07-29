@@ -32,8 +32,10 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.logging.Level;
+import java.util.regex.Pattern;
 
 public final class DatabaseManager {
+    private static final Pattern VALID_IDENTIFIER = Pattern.compile("^[a-z_][a-z0-9_]*$", Pattern.CASE_INSENSITIVE);
     private final JavaPlugin plugin;
     private final Settings settings;
     private final ExecutorService executor;
@@ -130,6 +132,9 @@ public final class DatabaseManager {
     }
 
     private void addColumnIfMissing(Connection connection, String table, String column, String definition) throws SQLException {
+        if (!VALID_IDENTIFIER.matcher(table).matches() || !VALID_IDENTIFIER.matcher(column).matches()) {
+            throw new IllegalArgumentException("Invalid table or column name: " + table + ", " + column);
+        }
         try (Statement check = connection.createStatement();
              ResultSet resultSet = check.executeQuery("PRAGMA table_info(" + table + ")")) {
             while (resultSet.next()) {
