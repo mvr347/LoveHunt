@@ -654,7 +654,9 @@ public final class MenuManager {
         if (meta != null) {
             meta.displayName(lang.component("gui.main.stats").decoration(TextDecoration.ITALIC, false));
             meta.lore(List.of(
+                    lang.legacy("§7Ранг: §6" + rating.rankName() + " §e" + rating.rankStars()),
                     lang.legacy("§7Рейтинг: §e" + String.format(Locale.ROOT, "%.1f", rating.rating()) + " / 5.0"),
+                    lang.legacy(rewardModifierLine(rating)),
                     lang.legacy("§7Выполнено: §a" + rating.completed()),
                     lang.legacy("§7Провалено: §c" + rating.failed())
             ));
@@ -662,6 +664,21 @@ public final class MenuManager {
             head.setItemMeta(meta);
         }
         return head;
+    }
+
+    /**
+     * Строка о том, как ранг влияет на награду. Надбавка и штраф считались и раньше,
+     * но игрок видел только итоговую сумму и не связывал её со своим рейтингом.
+     */
+    private String rewardModifierLine(HunterRating rating) {
+        int percent = (int) Math.round(bountyService.ratings().rewardModifierFraction(rating.rating()) * 100.0);
+        if (percent > 0) {
+            return "§7Награда: §a+" + percent + "% §7за ранг";
+        }
+        if (percent < 0) {
+            return "§7Награда: §c" + percent + "% §7за низкий рейтинг";
+        }
+        return "§7Награда: §fбез надбавки";
     }
 
     private ItemStack hunterHead(UUID hunterUuid) {
@@ -674,6 +691,7 @@ public final class MenuManager {
             meta.displayName(lang.legacy("§e" + name).decoration(TextDecoration.ITALIC, false));
             meta.lore(List.of(
                     lang.legacy("§7Онлайн: " + (hunter.isOnline() ? "§aДа" : "§cНет")),
+                    lang.legacy("§7Ранг: §6" + rating.rankName() + " §e" + rating.rankStars()),
                     lang.legacy("§7Рейтинг: §e" + String.format(Locale.ROOT, "%.1f", rating.rating()) + " / 5.0"),
                     lang.legacy("§7Выполнено: §a" + rating.completed()),
                     lang.legacy("§7Провалено: §c" + rating.failed())

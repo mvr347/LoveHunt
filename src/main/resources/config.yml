@@ -24,6 +24,10 @@ creation:
     amount: 64
   minimum-reward:
 clan-bounty:
+  # Клановый контракт выписывается только на игрока враждебного клана
+  enemies-only: true
+  # Сколько списывается из клановой казны за контракт. 0 — бесплатно
+  treasury-cost: 250
   enabled: true
   max-targets: 10
   per-player-cooldown-hours: 24
@@ -54,6 +58,9 @@ economy:
   # rating-penalty-cap-percent at rating 0.0.
   rating-penalty-threshold: 1.0
   rating-penalty-cap-percent: 20
+  # Рейтинг, при котором охотник перестаёт брать розыски, пока не поправит его
+  # выполненными контрактами. 0 или меньше — проверка отключена.
+  accept-block-rating: 0.5
   # TODO: forfeited/withheld percentages above currently have nowhere real to go since the
   # plugin has no internal currency or bank - the withheld portion of the reward is simply not
   # paid out (destroyed). Revisit once ItemsAdder-based economy/value integration lands so this

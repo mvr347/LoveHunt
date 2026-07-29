@@ -7,7 +7,9 @@ import me.lovelace.loveHunt.model.RewardItem;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.entity.Player;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -74,5 +76,12 @@ public class LoveHuntAPIImpl implements LoveHuntAPI {
     @Override
     public CompletableFuture<Boolean> acceptBounty(Player hunter, Bounty bounty) {
         return bountyService.accept(hunter, bounty);
+    }
+
+    @Override
+    public Map<UUID, Double> getHunterRatings() {
+        Map<UUID, Double> ratings = new HashMap<>();
+        bountyService.ratings().snapshot().forEach((uuid, rating) -> ratings.put(uuid, rating.rating()));
+        return ratings;
     }
 }

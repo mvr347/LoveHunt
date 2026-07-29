@@ -97,6 +97,21 @@ public final class RatingService {
         return (int) Math.max(0, result);
     }
 
+    /**
+     * Не даёт брать контракты охотнику, который завалил их подряд столько раз, что
+     * рейтинг упал до порога. Состояние вычисляется из рейтинга, а не хранится
+     * отдельным флагом: провалы его роняют, выполненные контракты поднимают, поэтому
+     * блокировка снимается сама и не путается с ручной блокировкой от админа.
+     * Порог 0 или меньше отключает проверку.
+     */
+    public boolean isRatingTooLowToAccept(UUID uuid) {
+        double threshold = settings.acceptBlockRating();
+        if (threshold <= HunterRating.MIN_RATING) {
+            return false;
+        }
+        return get(uuid).rating() <= threshold;
+    }
+
     public boolean isCreateBlocked(UUID uuid) {
         PlayerLock lock = locks.get(uuid);
         return lock != null && lock.createBlocked();

@@ -25,6 +25,8 @@ public final class Settings {
     private int maxActiveByPlayer;
     private boolean clanBountyEnabled;
     private int clanMaxTargets;
+    private boolean clanEnemiesOnly;
+    private long clanTreasuryCost;
     private int clanCooldownHours;
     private int playerMaxHunters;
     private int clanMaxHunters;
@@ -43,6 +45,7 @@ public final class Settings {
     private int ratingBonusCapPercent;
     private double ratingPenaltyThreshold;
     private int ratingPenaltyCapPercent;
+    private double acceptBlockRating;
     private int playerBaseDurationHours;
     private int playerExtendCostPercent;
     private int playerMaxDurationDays;
@@ -74,6 +77,8 @@ public final class Settings {
         playerMaxHunters = Math.max(1, config.getInt("creation.max-hunters", 25));
         clanBountyEnabled = config.getBoolean("clan-bounty.enabled", true);
         clanMaxTargets = Math.max(1, config.getInt("clan-bounty.max-targets", 10));
+        clanEnemiesOnly = config.getBoolean("clan-bounty.enemies-only", true);
+        clanTreasuryCost = Math.max(0L, config.getLong("clan-bounty.treasury-cost", 250L));
         clanCooldownHours = Math.max(1, config.getInt("clan-bounty.per-player-cooldown-hours", 24));
         clanMaxHunters = Math.max(1, config.getInt("clan-bounty.max-hunters", 25));
         serverMaxHunters = Math.max(1, config.getInt("server-bounty.max-hunters", 25));
@@ -91,6 +96,7 @@ public final class Settings {
         ratingBonusCapPercent = Math.max(0, config.getInt("economy.rating-bonus-cap-percent", 20));
         ratingPenaltyThreshold = config.getDouble("economy.rating-penalty-threshold", 1.0);
         ratingPenaltyCapPercent = Math.max(0, config.getInt("economy.rating-penalty-cap-percent", 20));
+        acceptBlockRating = config.getDouble("economy.accept-block-rating", 0.5);
         playerBaseDurationHours = Math.max(1, config.getInt("creation.base-duration-hours", 72));
         playerExtendCostPercent = Math.max(1, config.getInt("creation.extend-cost-percent", 5));
         playerMaxDurationDays = Math.max(1, config.getInt("creation.max-duration-days", 10));
@@ -158,6 +164,14 @@ public final class Settings {
 
     public int maxActiveByPlayer() {
         return maxActiveByPlayer;
+    }
+
+    public boolean clanEnemiesOnly() {
+        return clanEnemiesOnly;
+    }
+
+    public long clanTreasuryCost() {
+        return clanTreasuryCost;
     }
 
     public boolean clanBountyEnabled() {
@@ -230,6 +244,10 @@ public final class Settings {
 
     public double ratingPenaltyThreshold() {
         return ratingPenaltyThreshold;
+    }
+
+    public double acceptBlockRating() {
+        return acceptBlockRating;
     }
 
     public int ratingPenaltyCapPercent() {
