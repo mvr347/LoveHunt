@@ -306,6 +306,29 @@ public final class BountyService {
         lang.send(hunter, "reward-given", lang.placeholders("amount", finalReward.amount(), "item", finalReward.displayName()));
         Bukkit.broadcast(lang.component("bounty-completed", lang.placeholders("hunter", hunter.getName(), "target", bounty.targetName()), true));
         Bukkit.getPluginManager().callEvent(new BountyClaimEvent(bounty, hunter));
+
+        reportCompletionToCore(hunter.getUniqueId());
+    }
+
+    /**
+     * Сообщает ядру о выполненном контракте, если LoveCore установлен. Проверка присутствия
+     * плагина обязательна: классы {@code lovecore-api} подключены только в scope provided —
+     * без ядра на сервере их вообще нет на classpath, и любое обращение к ним без охраны
+     * уронило бы этот метод с {@code NoClassDefFoundError}.
+     */
+    private void reportCompletionToCore(UUID hunterId) {
+        if (Bukkit.getPluginManager().getPlugin("LoveCore") == null) {
+            return;
+        }
+        try {
+            HunterRating updatedRating = ratingService.get(hunterId);
+            dev.lovelace.lovecore.api.LoveCore.service(dev.lovelace.lovecore.api.stats.StatBus.class).ifPresent(bus -> {
+                bus.record(hunterId, dev.lovelace.lovecore.api.stats.Metrics.BOUNTIES_COMPLETED, 1);
+                bus.set(hunterId, dev.lovelace.lovecore.api.stats.Metrics.HUNTER_RATING, updatedRating.rating());
+            });
+        } catch (Throwable t) {
+            plugin.getLogger().warning("Не удалось отчитаться перед LoveCore о выполненном контракте: " + t.getMessage());
+        }
     }
 
     private int applyServerEscalation(Bounty bounty, int baseAmount) {
