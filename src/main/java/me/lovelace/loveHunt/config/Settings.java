@@ -43,6 +43,7 @@ public final class Settings {
     private int ratingBonusCapPercent;
     private double ratingPenaltyThreshold;
     private int ratingPenaltyCapPercent;
+    private double acceptBlockRating;
     private int playerBaseDurationHours;
     private int playerExtendCostPercent;
     private int playerMaxDurationDays;
@@ -91,6 +92,7 @@ public final class Settings {
         ratingBonusCapPercent = Math.max(0, config.getInt("economy.rating-bonus-cap-percent", 20));
         ratingPenaltyThreshold = config.getDouble("economy.rating-penalty-threshold", 1.0);
         ratingPenaltyCapPercent = Math.max(0, config.getInt("economy.rating-penalty-cap-percent", 20));
+        acceptBlockRating = config.getDouble("economy.accept-block-rating", 0.5);
         playerBaseDurationHours = Math.max(1, config.getInt("creation.base-duration-hours", 72));
         playerExtendCostPercent = Math.max(1, config.getInt("creation.extend-cost-percent", 5));
         playerMaxDurationDays = Math.max(1, config.getInt("creation.max-duration-days", 10));
@@ -230,6 +232,10 @@ public final class Settings {
 
     public double ratingPenaltyThreshold() {
         return ratingPenaltyThreshold;
+    }
+
+    public double acceptBlockRating() {
+        return acceptBlockRating;
     }
 
     public int ratingPenaltyCapPercent() {

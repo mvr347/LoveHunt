@@ -44,6 +44,10 @@ public final class LoveHuntPapiExpansion extends PlaceholderExpansion {
         HunterRating rating = bountyService.ratings().get(offlinePlayer.getUniqueId());
         return switch (params.toLowerCase(Locale.ROOT)) {
             case "rating" -> String.format(Locale.ROOT, "%.1f", rating.rating());
+            case "rank" -> rating.rankName();
+            case "rank_stars" -> rating.rankStars();
+            case "reward_modifier" -> String.valueOf(
+                (int) Math.round(bountyService.ratings().rewardModifierFraction(rating.rating()) * 100.0));
             case "completed" -> String.valueOf(rating.completed());
             case "failed" -> String.valueOf(rating.failed());
             case "active_count" -> String.valueOf(bountyService.allActive().size());

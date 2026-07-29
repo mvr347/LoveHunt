@@ -225,6 +225,10 @@ public final class BountyService {
         if (ratingService.isAcceptBlocked(hunter.getUniqueId())) {
             return CompletableFuture.completedFuture(false);
         }
+        if (ratingService.isRatingTooLowToAccept(hunter.getUniqueId())) {
+            lang.send(hunter, "rating-too-low");
+            return CompletableFuture.completedFuture(false);
+        }
         if (isFrozen(bounty)) {
             return CompletableFuture.completedFuture(false);
         }
