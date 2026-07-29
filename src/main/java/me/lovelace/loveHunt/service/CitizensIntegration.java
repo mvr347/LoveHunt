@@ -53,7 +53,9 @@ public final class CitizensIntegration {
         if (!isAvailable() || player == null) {
             return null;
         }
-        RayTraceResult trace = player.rayTraceEntities(distance);
+        // Bukkit принимает дальность в целых блоках — округляем вверх,
+        // чтобы дробная дальность не обрезалась до меньшего радиуса.
+        RayTraceResult trace = player.rayTraceEntities((int) Math.ceil(distance));
         if (trace == null) {
             return null;
         }
