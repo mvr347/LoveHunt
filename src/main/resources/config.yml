@@ -24,6 +24,10 @@ creation:
     amount: 64
   minimum-reward:
 clan-bounty:
+  # Клановый контракт выписывается только на игрока враждебного клана
+  enemies-only: true
+  # Сколько списывается из клановой казны за контракт. 0 — бесплатно
+  treasury-cost: 250
   enabled: true
   max-targets: 10
   per-player-cooldown-hours: 24

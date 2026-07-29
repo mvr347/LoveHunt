@@ -462,13 +462,29 @@ public final class BountyService {
         if (targets >= settings.clanMaxTargets()) {
             return CompletableFuture.failedFuture(new IllegalStateException("Clan bounty target limit reached"));
         }
-        long now = System.currentTimeMillis();
-        Bounty draft = new Bounty(0L, BountyType.CLAN, targetUuid, targetName, creatorUuid, creatorName, clanTag, reward,
-                now, now + Duration.ofHours(settings.clanBaseDurationHours()).toMillis(), BountyStatus.ACTIVE);
-        return database.insertBounty(draft).thenApply(bounty -> {
-            cache(bounty);
-            Bukkit.getPluginManager().callEvent(new BountyCreateEvent(bounty, true));
-            return bounty;
+        // Контракт из общей казны выписывается на врага, а не на случайного прохожего:
+        // иначе клановые деньги превращались бы в инструмент травли кого угодно.
+        if (settings.clanEnemiesOnly() && !clans.areEnemies(creatorUuid, targetUuid)) {
+            return CompletableFuture.failedFuture(new IllegalStateException("Target clan is not an enemy"));
+        }
+
+        long cost = settings.clanTreasuryCost();
+        CompletableFuture<Boolean> payment = cost > 0
+                ? clans.chargeClanTreasury(clanTag, cost)
+                : CompletableFuture.completedFuture(true);
+
+        return payment.thenCompose(paid -> {
+            if (!Boolean.TRUE.equals(paid)) {
+                return CompletableFuture.failedFuture(new IllegalStateException("Clan treasury cannot cover the contract"));
+            }
+            long now = System.currentTimeMillis();
+            Bounty draft = new Bounty(0L, BountyType.CLAN, targetUuid, targetName, creatorUuid, creatorName, clanTag, reward,
+                    now, now + Duration.ofHours(settings.clanBaseDurationHours()).toMillis(), BountyStatus.ACTIVE);
+            return database.insertBounty(draft).thenApply(bounty -> {
+                cache(bounty);
+                Bukkit.getPluginManager().callEvent(new BountyCreateEvent(bounty, true));
+                return bounty;
+            });
         });
     }
 
