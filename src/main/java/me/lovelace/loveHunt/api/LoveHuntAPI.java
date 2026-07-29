@@ -7,6 +7,7 @@ import org.bukkit.entity.Player;
 
 import java.util.List;
 import java.util.Set;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
@@ -94,4 +95,12 @@ public interface LoveHuntAPI {
      * @return a future completing with true if successfully accepted.
      */
     CompletableFuture<Boolean> acceptBounty(Player hunter, Bounty bounty);
+
+    /**
+     * Рейтинги всех охотников, о которых плагин что-то знает: uuid -> рейтинг (0..5).
+     * Нужен внешним плагинам, строящим топы: раньше рейтинг был виден только внутри
+     * LoveHunt и через плейсхолдеры одного игрока, поэтому отранжировать охотников
+     * было нечем.
+     */
+    Map<UUID, Double> getHunterRatings();
 }
