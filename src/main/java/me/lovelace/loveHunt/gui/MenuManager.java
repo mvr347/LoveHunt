@@ -20,6 +20,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.entity.Player;
+import org.bukkit.event.inventory.InventoryType;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
@@ -32,6 +33,7 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -44,12 +46,17 @@ public final class MenuManager {
     private static final int ALL_MAIN_BUTTON = 15;
 
     private static final int MANAGE_SIZE = 54;
-    private static final int MANAGE_BACK = 0;
-    private static final int MANAGE_TARGET = 4;
-    private static final int MANAGE_CANCEL = 8;
-    private static final int MANAGE_EXTEND = 49;
-    private static final int MANAGE_HUNTERS_START = 9;
-    private static final int MANAGE_HUNTERS_END = 45;
+    private static final int MANAGE_TARGET = 0;
+    private static final int MANAGE_CANCEL = 50;
+    private static final int MANAGE_EXTEND = 51;
+    private static final int MANAGE_BACK = 52;
+    private static final int MANAGE_CLOSE = 53;
+
+    private static final int[] CONTENT_SLOTS = {
+        19, 20, 21, 22, 23, 24, 25,
+        28, 29, 30, 31, 32, 33, 34,
+        37, 38, 39, 40, 41, 42, 43
+    };
 
     private final JavaPlugin plugin;
     private final Settings settings;
@@ -71,8 +78,9 @@ public final class MenuManager {
         holder.inventory(inventory);
         fill(inventory);
         inventory.setItem(0, statsButton(player));
-        inventory.setItem(MINE_MAIN_BUTTON, button("gui.items.my-bounties", Material.PLAYER_HEAD, "heads.my-bounties-base64", lang.component("gui.main.mine")));
-        inventory.setItem(ALL_MAIN_BUTTON, button("gui.items.all-bounties", Material.COMPASS, "heads.all-bounties-base64", lang.component("gui.main.all")));
+        inventory.setItem(MINE_MAIN_BUTTON, button("gui.items.my-bounties", Material.PLAYER_HEAD, "heads.my-bounties-base64", lang.component("gui.main.mine"), lang.components("gui.main.mine-lore", Map.of(), false)));
+        inventory.setItem(ALL_MAIN_BUTTON, button("gui.items.all-bounties", Material.COMPASS, "heads.all-bounties-base64", lang.component("gui.main.all"), lang.components("gui.main.all-lore", Map.of(), false)));
+        inventory.setItem(25, createButton());
         inventory.setItem(MAIN_SIZE - 1, closeButton());
         player.openInventory(inventory);
     }
@@ -85,14 +93,14 @@ public final class MenuManager {
             return;
         }
         LoveHuntHolder holder = new LoveHuntHolder(MenuType.MINE, MenuType.MINE, slice.page(), sortMode, TypeFilter.ALL, false, false, search, null, 0L);
-        Inventory inventory = Bukkit.createInventory(holder, slice.size(), lang.component("gui.mine-title"));
+        Inventory inventory = Bukkit.createInventory(holder, MANAGE_SIZE, lang.component("gui.mine-title"));
         holder.inventory(inventory);
         fill(inventory);
-        addMineHeader(inventory, sortMode);
+        addMineHeader(inventory, sortMode, player);
         placeItems(inventory, holder, bounties, slice, player);
         addFooter(inventory, slice);
         if (bounties.isEmpty()) {
-            inventory.setItem(centerSlot(slice.size()), named(Material.GRAY_DYE, lang.component("gui.mine.empty")));
+            inventory.setItem(31, emptyNoticeHead(lang.component("gui.mine.empty"), lang.components("gui.mine.empty-lore", Map.of(), false)));
         }
         player.openInventory(inventory);
     }
@@ -106,14 +114,14 @@ public final class MenuManager {
             return;
         }
         LoveHuntHolder holder = new LoveHuntHolder(MenuType.ALL, MenuType.ALL, slice.page(), sortMode, typeFilter, clanFilter, onlineOnly, search, null, 0L);
-        Inventory inventory = Bukkit.createInventory(holder, slice.size(), lang.component("gui.all-title"));
+        Inventory inventory = Bukkit.createInventory(holder, MANAGE_SIZE, lang.component("gui.all-title"));
         holder.inventory(inventory);
         fill(inventory);
         addAllHeader(inventory, sortMode, typeFilter, clanFilter, onlineOnly, player);
         placeItems(inventory, holder, bounties, slice, player);
         addFooter(inventory, slice);
         if (bounties.isEmpty()) {
-            inventory.setItem(centerSlot(slice.size()), named(Material.GRAY_DYE, lang.component("gui.all.empty")));
+            inventory.setItem(31, emptyNoticeHead(lang.component("gui.all.empty"), lang.components("gui.all.empty-lore", Map.of(), false)));
         }
         player.openInventory(inventory);
     }
@@ -121,63 +129,72 @@ public final class MenuManager {
     public void openCreateConfirm(Player player, CreateSession session) {
         createSessions.put(player.getUniqueId(), session);
         LoveHuntHolder holder = new LoveHuntHolder(MenuType.CONFIRM_CREATE, MenuType.MAIN, 0, SortMode.DATE, TypeFilter.ALL, false, false, null, session, 0L);
-        Inventory inventory = Bukkit.createInventory(holder, 45, lang.component("gui.confirm-create-title"));
+        Inventory inventory = Bukkit.createInventory(holder, InventoryType.HOPPER, lang.component("gui.confirm-create-title"));
         holder.inventory(inventory);
         fill(inventory);
-        inventory.setItem(13, createSummary(session));
-        inventory.setItem(30, backButton());
-        inventory.setItem(32, named(configMaterial("gui.items.confirm", Material.LIME_CONCRETE), lang.component("gui.confirm.confirm")));
+        inventory.setItem(0, confirmButton());
+        inventory.setItem(2, createSummary(session));
+        inventory.setItem(4, cancelActionButton());
         player.openInventory(inventory);
     }
 
     public void openAcceptConfirm(Player player, LoveHuntHolder origin, Bounty bounty) {
         LoveHuntHolder holder = new LoveHuntHolder(MenuType.CONFIRM_ACCEPT, origin.returnType(), origin.page(), origin.sortMode(), origin.typeFilter(),
                 origin.onlyMyClan(), origin.onlineOnly(), origin.search(), null, bounty.id());
-        Inventory inventory = Bukkit.createInventory(holder, 45, lang.component("gui.confirm-accept-title"));
+        Inventory inventory = Bukkit.createInventory(holder, InventoryType.HOPPER, lang.component("gui.confirm-accept-title"));
         holder.inventory(inventory);
         fill(inventory);
-        inventory.setItem(13, bountyHead(bounty, player));
-        inventory.setItem(30, backButton());
-        inventory.setItem(32, named(configMaterial("gui.items.confirm", Material.LIME_CONCRETE), lang.component("gui.confirm.confirm")));
+        inventory.setItem(0, confirmButton());
+        inventory.setItem(2, bountyHead(bounty, player));
+        inventory.setItem(4, cancelActionButton());
         player.openInventory(inventory);
     }
 
     public void openCancelConfirm(Player player, LoveHuntHolder origin, Bounty bounty) {
         LoveHuntHolder holder = new LoveHuntHolder(MenuType.CONFIRM_CANCEL, origin.returnType(), origin.page(), origin.sortMode(), origin.typeFilter(),
                 origin.onlyMyClan(), origin.onlineOnly(), origin.search(), null, bounty.id());
-        Inventory inventory = Bukkit.createInventory(holder, 45, lang.component("gui.confirm-cancel-title"));
+        Inventory inventory = Bukkit.createInventory(holder, InventoryType.HOPPER, lang.component("gui.confirm-cancel-title"));
         holder.inventory(inventory);
         fill(inventory);
-        inventory.setItem(13, bountyHead(bounty, player));
-        inventory.setItem(30, backButton());
-        inventory.setItem(32, cancelOrderButton());
+        inventory.setItem(0, confirmDeleteButton());
+        inventory.setItem(2, bountyHead(bounty, player));
+        inventory.setItem(4, cancelActionButton());
         player.openInventory(inventory);
     }
 
     public void openManage(Player player, LoveHuntHolder origin, Bounty bounty) {
         LoveHuntHolder holder = new LoveHuntHolder(MenuType.MANAGE, origin.returnType(), origin.page(), origin.sortMode(), origin.typeFilter(),
                 origin.onlyMyClan(), origin.onlineOnly(), origin.search(), null, bounty.id());
-        Inventory inventory = Bukkit.createInventory(holder, MANAGE_SIZE, lang.component("gui.manage-title"));
+        List<UUID> hunters = bountyService.huntersOf(bounty.id());
+        int size = hunters.isEmpty() ? 27 : MANAGE_SIZE;
+        Inventory inventory = Bukkit.createInventory(holder, size, lang.component("gui.manage-title"));
         holder.inventory(inventory);
         fill(inventory);
-        inventory.setItem(MANAGE_BACK, backButton());
-        inventory.setItem(MANAGE_TARGET, bountyHead(bounty, player));
-        inventory.setItem(MANAGE_CANCEL, cancelOrderButton());
-        if (bounty.type() == BountyType.PLAYER || bounty.type() == BountyType.CLAN) {
-            inventory.setItem(MANAGE_EXTEND, extendButton(bounty));
-        }
-        inventory.setItem(MANAGE_SIZE - 1, closeButton());
-        List<UUID> hunters = bountyService.huntersOf(bounty.id());
+        inventory.setItem(0, bountyHead(bounty, player));
+
         if (hunters.isEmpty()) {
-            inventory.setItem((MANAGE_HUNTERS_START + MANAGE_HUNTERS_END) / 2, named(Material.GRAY_DYE, lang.component("gui.manage-no-hunters")));
+            inventory.setItem(13, emptyNoticeHead(lang.component("gui.manage-no-hunters"), lang.components("gui.manage-no-hunters-lore", Map.of(), false)));
+            inventory.setItem(23, cancelOrderButton());
+            if (bounty.type() == BountyType.PLAYER || bounty.type() == BountyType.CLAN) {
+                inventory.setItem(24, extendButton(bounty));
+            }
+            inventory.setItem(25, backButton());
+            inventory.setItem(26, closeButton());
         } else {
-            int slot = MANAGE_HUNTERS_START;
+            inventory.setItem(MANAGE_CANCEL, cancelOrderButton());
+            if (bounty.type() == BountyType.PLAYER || bounty.type() == BountyType.CLAN) {
+                inventory.setItem(MANAGE_EXTEND, extendButton(bounty));
+            }
+            inventory.setItem(MANAGE_BACK, backButton());
+            inventory.setItem(MANAGE_CLOSE, closeButton());
+
+            int hunterIndex = 0;
             for (UUID hunterUuid : hunters) {
-                if (slot >= MANAGE_HUNTERS_END) {
+                if (hunterIndex >= CONTENT_SLOTS.length) {
                     break;
                 }
+                int slot = CONTENT_SLOTS[hunterIndex++];
                 inventory.setItem(slot, hunterHead(hunterUuid));
-                slot++;
             }
         }
         player.openInventory(inventory);
@@ -252,6 +269,8 @@ public final class MenuManager {
             openMine(player, 0, SortMode.DATE, null);
         } else if (slot == ALL_MAIN_BUTTON) {
             openAll(player, 0, SortMode.DATE, TypeFilter.ALL, false, false, null);
+        } else if (slot == 25) {
+            beginCreate(player);
         } else if (slot == MAIN_SIZE - 1) {
             player.closeInventory();
         }
@@ -262,23 +281,18 @@ public final class MenuManager {
             openBountyAction(player, holder, holder.bountySlots().get(slot));
             return;
         }
-        int footerStart = holder.getInventory().getSize() - ROW;
-        if (slot == 0) {
+        if (slot == 2) {
             openMine(player, 0, nextSort(holder.sortMode()), holder.search());
-        } else if (slot == 1) {
-            beginSearch(player, holder);
-        } else if (slot == 2) {
-            openMine(player, 0, SortMode.DATE, null);
-        } else if (slot == 7) {
-            openMain(player);
-        } else if (slot == 8) {
-            beginCreate(player);
-        } else if (slot == footerStart && holder.page() > 0) {
+        } else if (slot == 36 && holder.page() > 0) {
             openMine(player, holder.page() - 1, holder.sortMode(), holder.search());
-        } else if (slot == footerStart + 7) {
-            player.closeInventory();
-        } else if (slot == footerStart + 8) {
+        } else if (slot == 44) {
             openMine(player, holder.page() + 1, holder.sortMode(), holder.search());
+        } else if (slot == 51) {
+            beginCreate(player);
+        } else if (slot == 52) {
+            openMain(player);
+        } else if (slot == 53) {
+            player.closeInventory();
         }
     }
 
@@ -287,32 +301,27 @@ public final class MenuManager {
             openBountyAction(player, holder, holder.bountySlots().get(slot));
             return;
         }
-        int footerStart = holder.getInventory().getSize() - ROW;
-        if (slot == 0) {
+        if (slot == 2) {
             openAll(player, 0, nextSort(holder.sortMode()), holder.typeFilter(), holder.onlyMyClan(), holder.onlineOnly(), holder.search());
-        } else if (slot == 1) {
+        } else if (slot == 3) {
             openAll(player, 0, holder.sortMode(), nextType(holder.typeFilter()), holder.onlyMyClan(), holder.onlineOnly(), holder.search());
-        } else if (slot == 2) {
+        } else if (slot == 4) {
             if (!holder.onlyMyClan() && !clanFilterAvailable(player)) {
                 lang.send(player, "clan-filter-unavailable");
                 return;
             }
             boolean[] next = nextClanOnline(holder.onlyMyClan(), holder.onlineOnly());
             openAll(player, 0, holder.sortMode(), holder.typeFilter(), next[0], next[1], holder.search());
-        } else if (slot == 3) {
-            beginSearch(player, holder);
-        } else if (slot == 4) {
-            openAll(player, 0, SortMode.DATE, TypeFilter.ALL, false, false, null);
-        } else if (slot == 7) {
-            openMain(player);
-        } else if (slot == 8) {
-            beginCreate(player);
-        } else if (slot == footerStart && holder.page() > 0) {
+        } else if (slot == 36 && holder.page() > 0) {
             openAll(player, holder.page() - 1, holder.sortMode(), holder.typeFilter(), holder.onlyMyClan(), holder.onlineOnly(), holder.search());
-        } else if (slot == footerStart + 7) {
-            player.closeInventory();
-        } else if (slot == footerStart + 8) {
+        } else if (slot == 44) {
             openAll(player, holder.page() + 1, holder.sortMode(), holder.typeFilter(), holder.onlyMyClan(), holder.onlineOnly(), holder.search());
+        } else if (slot == 51) {
+            beginCreate(player);
+        } else if (slot == 52) {
+            openMain(player);
+        } else if (slot == 53) {
+            player.closeInventory();
         }
     }
 
@@ -333,11 +342,17 @@ public final class MenuManager {
     }
 
     private void handleManage(Player player, LoveHuntHolder holder, int slot) {
-        if (slot == MANAGE_SIZE - 1) {
+        int invSize = holder.getInventory() != null ? holder.getInventory().getSize() : MANAGE_SIZE;
+        int closeSlot = invSize == 27 ? 26 : MANAGE_CLOSE;
+        int backSlot = invSize == 27 ? 25 : MANAGE_BACK;
+        int extendSlot = invSize == 27 ? 24 : MANAGE_EXTEND;
+        int cancelSlot = invSize == 27 ? 23 : MANAGE_CANCEL;
+
+        if (slot == closeSlot) {
             player.closeInventory();
             return;
         }
-        if (slot == MANAGE_BACK) {
+        if (slot == backSlot) {
             reopen(player, holder);
             return;
         }
@@ -347,11 +362,11 @@ public final class MenuManager {
             reopen(player, holder);
             return;
         }
-        if (slot == MANAGE_CANCEL) {
+        if (slot == cancelSlot) {
             openCancelConfirm(player, holder, bounty);
             return;
         }
-        if (slot == MANAGE_EXTEND) {
+        if (slot == extendSlot) {
             BountyService.ExtendResult result = bountyService.extend(player, bounty);
             if (!result.success()) {
                 lang.send(player, result.messageKey(), result.placeholders());
@@ -363,13 +378,13 @@ public final class MenuManager {
     }
 
     private void handleCreateConfirm(Player player, LoveHuntHolder holder, int slot) {
-        if (slot == 30) {
+        if (slot == 4) {
             createSessions.remove(player.getUniqueId());
             player.closeInventory();
             lang.send(player, "cancelled");
             return;
         }
-        if (slot != 32) {
+        if (slot != 0) {
             return;
         }
         CreateSession session = createSessions.remove(player.getUniqueId());
@@ -391,11 +406,11 @@ public final class MenuManager {
     }
 
     private void handleAcceptConfirm(Player player, LoveHuntHolder holder, int slot) {
-        if (slot == 30) {
+        if (slot == 4) {
             reopen(player, holder);
             return;
         }
-        if (slot != 32) {
+        if (slot != 0) {
             return;
         }
         Bounty bounty = bountyService.get(holder.bountyId());
@@ -423,11 +438,11 @@ public final class MenuManager {
     }
 
     private void handleCancelConfirm(Player player, LoveHuntHolder holder, int slot) {
-        if (slot == 30) {
+        if (slot == 4) {
             reopen(player, holder);
             return;
         }
-        if (slot != 32) {
+        if (slot != 0) {
             return;
         }
         Bounty bounty = bountyService.get(holder.bountyId());
@@ -529,67 +544,66 @@ public final class MenuManager {
         return clans != null && clans.isAvailable() && clans.getClanTag(player.getUniqueId()) != null;
     }
 
-    private void addMineHeader(Inventory inventory, SortMode sortMode) {
-        inventory.setItem(0, sortButton(sortMode));
-        inventory.setItem(1, button("gui.items.search", Material.OAK_SIGN, "heads.search-base64", lang.component("gui.all.search")));
-        inventory.setItem(2, button("gui.items.reset", Material.BARRIER, "heads.reset-base64", lang.component("gui.all.reset")));
-        inventory.setItem(7, backButton());
-        inventory.setItem(8, createButton());
+    private void addMineHeader(Inventory inventory, SortMode sortMode, Player viewer) {
+        ItemStack filler = named(configMaterial("gui.items.filler", Material.GRAY_STAINED_GLASS_PANE), Component.text(" "));
+        inventory.setItem(0, statsButton(viewer));
+        inventory.setItem(2, sortButton(sortMode));
+        inventory.setItem(3, filler);
+        inventory.setItem(4, filler);
     }
 
     private void addAllHeader(Inventory inventory, SortMode sortMode, TypeFilter typeFilter, boolean onlyMyClan, boolean onlineOnly, Player viewer) {
-        inventory.setItem(0, sortButton(sortMode));
-        inventory.setItem(1, typeButton(typeFilter));
-        inventory.setItem(2, clanOnlineButton(onlyMyClan, onlineOnly, viewer));
-        inventory.setItem(3, button("gui.items.search", Material.OAK_SIGN, "heads.search-base64", lang.component("gui.all.search")));
-        inventory.setItem(4, button("gui.items.reset", Material.BARRIER, "heads.reset-base64", lang.component("gui.all.reset")));
-        inventory.setItem(7, backButton());
-        inventory.setItem(8, createButton());
+        inventory.setItem(0, statsButton(viewer));
+        inventory.setItem(2, sortButton(sortMode));
+        inventory.setItem(3, typeButton(typeFilter));
+        inventory.setItem(4, clanOnlineButton(onlyMyClan, onlineOnly, viewer));
     }
 
     private void addFooter(Inventory inventory, PageSlice slice) {
-        int size = inventory.getSize();
-        inventory.setItem(size - 9, button("gui.items.previous", Material.ARROW, "heads.previous-base64", lang.component("gui.all.previous")));
-        inventory.setItem(size - 5, named(Material.PAPER, lang.component("gui.all.page",
-                lang.placeholders("page", slice.page() + 1, "pages", slice.totalPages()), false)));
-        inventory.setItem(size - 2, closeButton());
-        inventory.setItem(size - 1, button("gui.items.next", Material.ARROW, "heads.next-base64", lang.component("gui.all.next")));
+        if (slice.totalPages() > 1) {
+            if (slice.page() > 0) {
+                inventory.setItem(36, prevButton());
+            }
+            if (slice.page() < slice.totalPages() - 1) {
+                inventory.setItem(44, nextButton());
+            }
+        }
+        inventory.setItem(51, createButton());
+        inventory.setItem(52, backButton());
+        inventory.setItem(53, closeButton());
     }
 
     private void placeItems(Inventory inventory, LoveHuntHolder holder, List<Bounty> bounties, PageSlice slice, Player viewer) {
-        int slot = ROW;
+        int itemIndex = 0;
         for (int index = slice.start(); index < slice.end(); index++) {
+            if (itemIndex >= CONTENT_SLOTS.length) {
+                break;
+            }
+            int slot = CONTENT_SLOTS[itemIndex++];
             Bounty bounty = bounties.get(index);
             inventory.setItem(slot, bountyHead(bounty, viewer));
             holder.bountySlots().put(slot, bounty.id());
-            slot++;
         }
     }
 
     private int centerSlot(int size) {
-        return size / 2;
-    }
-
-    private int itemRowsFor(int itemCount) {
-        if (itemCount <= 0) {
-            return 1;
+        if (size == 54) {
+            return 31;
         }
-        return Math.min(MAX_ITEM_ROWS, (int) Math.ceil(itemCount / (double) ROW));
+        return size / 2;
     }
 
     private PageSlice paginate(List<Bounty> bounties, int page) {
         int total = bounties.size();
-        int totalPages = Math.max(1, (int) Math.ceil(total / (double) PAGE_CAPACITY));
+        int capacity = CONTENT_SLOTS.length;
+        int totalPages = Math.max(1, (int) Math.ceil(total / (double) capacity));
         int safePage = Math.max(0, page);
-        int start = safePage * PAGE_CAPACITY;
+        int start = safePage * capacity;
         if (start >= total && safePage > 0) {
             return null;
         }
-        int end = Math.min(start + PAGE_CAPACITY, total);
-        int itemsOnPage = Math.max(0, end - start);
-        int itemRows = itemRowsFor(itemsOnPage);
-        int size = (itemRows + 2) * ROW;
-        return new PageSlice(safePage, start, end, size, totalPages);
+        int end = Math.min(start + capacity, total);
+        return new PageSlice(safePage, start, end, MANAGE_SIZE, totalPages);
     }
 
     private ItemStack sortButton(SortMode sortMode) {
@@ -600,8 +614,7 @@ public final class MenuManager {
             case EXPIRING -> "gui.all.sort-expiring";
             case POPULAR -> "gui.all.sort-popular";
         };
-        ItemStack item = button("gui.items.sort", Material.NAME_TAG, "heads.sort-base64", lang.component(labelKey));
-        return withLore(item, lang.component("gui.all.sort-hint"));
+        return button("gui.items.sort", Material.NAME_TAG, "heads.sort-base64", lang.component(labelKey), lang.components("gui.all.sort-hint", Map.of(), false));
     }
 
     private ItemStack typeButton(TypeFilter typeFilter) {
@@ -611,12 +624,9 @@ public final class MenuManager {
             case CLAN -> "gui.all.type-clan";
             case SERVER -> "gui.all.type-server";
         };
-        ItemStack item = button("gui.items.type-filter", Material.COMPASS, "heads.type-filter-base64", lang.component(labelKey));
-        return withLore(item, lang.component("gui.all.type-hint"));
+        return button("gui.items.type-filter", Material.COMPASS, "heads.type-filter-base64", lang.component(labelKey), lang.components("gui.all.type-hint", Map.of(), false));
     }
 
-    // Объединяет бывшие clan-filter/online-filter в одну кнопку с 4 состояниями
-    // (см. nextClanOnline) — было две отдельные кнопки, делающие пересекающийся выбор.
     private ItemStack clanOnlineButton(boolean onlyMyClan, boolean onlineOnly, Player viewer) {
         String labelKey;
         if (onlyMyClan && onlineOnly) labelKey = "gui.all.clan-online-both";
@@ -624,27 +634,47 @@ public final class MenuManager {
         else if (onlineOnly) labelKey = "gui.all.clan-online-online";
         else labelKey = "gui.all.clan-online-off";
 
-        ItemStack item = button("gui.items.clan-filter", Material.SHIELD, "heads.clan-filter-base64", lang.component(labelKey));
+        List<Component> lore = lang.components("gui.all.clan-online-hint", Map.of(), false);
         if (!clanFilterAvailable(viewer)) {
-            return withLore(item, lang.component("gui.all.clan-filter-unavailable"));
+            lore = List.of(lang.component("gui.all.clan-filter-unavailable"));
         }
-        return item;
+        return button("gui.items.clan-filter", Material.SHIELD, "heads.clan-filter-base64", lang.component(labelKey), lore);
     }
 
     private ItemStack backButton() {
-        return button("gui.items.back", Material.ARROW, "heads.back-base64", lang.component("gui.confirm.back"));
+        return button("gui.items.back", Material.ARROW, "heads.back-base64", lang.component("gui.back"), lang.components("gui.back-lore", Map.of(), false));
     }
 
     private ItemStack closeButton() {
-        return button("gui.items.close", Material.BARRIER, "heads.close-base64", lang.component("gui.close"));
+        return button("gui.items.close", Material.BARRIER, "heads.close-base64", lang.component("gui.close"), lang.components("gui.close-lore", Map.of(), false));
     }
 
     private ItemStack createButton() {
-        return button("gui.items.create-bounty", Material.WRITABLE_BOOK, "heads.create-bounty-base64", lang.component("gui.create"));
+        return button("gui.items.create-bounty", Material.WRITABLE_BOOK, "heads.create-bounty-base64", lang.component("gui.create"), lang.components("gui.create-lore", Map.of(), false));
+    }
+
+    private ItemStack prevButton() {
+        return button("gui.items.previous", Material.ARROW, "heads.previous-base64", lang.component("gui.all.previous"), lang.components("gui.all.previous-lore", Map.of(), false));
+    }
+
+    private ItemStack nextButton() {
+        return button("gui.items.next", Material.ARROW, "heads.next-base64", lang.component("gui.all.next"), lang.components("gui.all.next-lore", Map.of(), false));
+    }
+
+    private ItemStack confirmButton() {
+        return button("gui.items.confirm", Material.LIME_CONCRETE, "heads.confirm-base64", lang.component("gui.confirm.confirm"), lang.components("gui.confirm.confirm-lore", Map.of(), false));
+    }
+
+    private ItemStack confirmDeleteButton() {
+        return button("gui.items.confirm", Material.LIME_CONCRETE, "heads.confirm-base64", lang.component("gui.confirm.confirm"), lang.components("gui.confirm.confirm-delete-lore", Map.of(), false));
+    }
+
+    private ItemStack cancelActionButton() {
+        return button("gui.items.cancel", Material.RED_CONCRETE, "heads.close-base64", lang.component("gui.confirm.cancel"), lang.components("gui.confirm.cancel-lore", Map.of(), false));
     }
 
     private ItemStack cancelOrderButton() {
-        return button("gui.items.cancel-order", Material.RED_CONCRETE, "heads.cancel-order-base64", lang.component("gui.confirm.cancel-order"));
+        return button("gui.items.cancel-order", Material.RED_CONCRETE, "heads.cancel-order-base64", lang.component("gui.confirm.cancel-order"), lang.components("gui.confirm.cancel-order-lore", Map.of(), false));
     }
 
     private ItemStack statsButton(Player player) {
@@ -658,7 +688,9 @@ public final class MenuManager {
                     lang.legacy("§7Рейтинг: §e" + String.format(Locale.ROOT, "%.1f", rating.rating()) + " / 5.0"),
                     lang.legacy(rewardModifierLine(rating)),
                     lang.legacy("§7Выполнено: §a" + rating.completed()),
-                    lang.legacy("§7Провалено: §c" + rating.failed())
+                    lang.legacy("§7Провалено: §c" + rating.failed()),
+                    lang.legacy(""),
+                    lang.legacy("§aВаша статистика и профиль")
             ));
             meta.addItemFlags(ItemFlag.values());
             head.setItemMeta(meta);
@@ -706,15 +738,24 @@ public final class MenuManager {
         boolean clan = bounty.type() == BountyType.CLAN;
         int costPercent = clan ? settings.clanExtendCostPercent() : settings.playerExtendCostPercent();
         int cost = Math.max(1, (int) Math.ceil(bounty.reward().amount() * (costPercent / 100.0)));
-        ItemStack item = named(Material.CLOCK, lang.component("gui.manage-extend"));
-        return withLore(item, lang.component("gui.manage-extend-hint",
-                lang.placeholders("amount", String.valueOf(cost), "item", bounty.reward().displayName()), false));
+        List<Component> lore = lang.components("gui.manage-extend-hint",
+                lang.placeholders("amount", String.valueOf(cost), "item", bounty.reward().displayName()), false);
+        return button("gui.items.manage-extend", Material.CLOCK, "heads.extend-base64", lang.component("gui.manage-extend"), lore);
     }
 
     private ItemStack withLore(ItemStack item, Component lore) {
         ItemMeta meta = item.getItemMeta();
         if (meta != null) {
             meta.lore(List.of(lore));
+            item.setItemMeta(meta);
+        }
+        return item;
+    }
+
+    private ItemStack withLoreList(ItemStack item, String key) {
+        ItemMeta meta = item.getItemMeta();
+        if (meta != null) {
+            meta.lore(lang.components(key, Map.of(), false));
             item.setItemMeta(meta);
         }
         return item;
@@ -738,8 +779,7 @@ public final class MenuManager {
                     lang.legacy("§7Выставил: " + creator),
                     lang.legacy("§7Награда: §e" + bounty.reward().amount() + "× " + bounty.reward().displayName()),
                     lang.legacy("§7Осталось: §f" + left),
-                    lang.legacy("§7Охотников: §f" + bountyService.hunterCount(bounty.id())),
-                    lang.legacy("§8ID: #" + bounty.id())
+                    lang.legacy("§7Охотников: §f" + bountyService.hunterCount(bounty.id()))
             ));
             boolean own = (bounty.type() == BountyType.PLAYER || bounty.type() == BountyType.CLAN)
                     && bounty.creatorUuid() != null && bounty.creatorUuid().equals(viewer.getUniqueId());
@@ -771,10 +811,48 @@ public final class MenuManager {
     }
 
     private void fill(Inventory inventory) {
-        ItemStack filler = named(configMaterial("gui.items.filler", Material.BLACK_STAINED_GLASS_PANE), Component.empty());
-        for (int slot = 0; slot < inventory.getSize(); slot++) {
-            inventory.setItem(slot, filler);
+        ItemStack filler = named(configMaterial("gui.items.filler", Material.GRAY_STAINED_GLASS_PANE), Component.text(" "));
+        int size = inventory.getSize();
+        if (size == 54) {
+            inventory.setItem(1, filler);
+            for (int slot = 5; slot <= 8; slot++) {
+                inventory.setItem(slot, filler);
+            }
+            for (int slot = 9; slot <= 17; slot++) {
+                inventory.setItem(slot, filler);
+            }
+            for (int slot = 45; slot <= 50; slot++) {
+                inventory.setItem(slot, filler);
+            }
+        } else if (size == 27) {
+            for (int slot = 1; slot <= 8; slot++) {
+                inventory.setItem(slot, filler);
+            }
+            for (int slot = 18; slot <= 22; slot++) {
+                inventory.setItem(slot, filler);
+            }
+        } else if (size == 5 || inventory.getType() == InventoryType.HOPPER) {
+            inventory.setItem(1, filler);
+            inventory.setItem(3, filler);
+        } else {
+            for (int slot = 0; slot < inventory.getSize(); slot++) {
+                inventory.setItem(slot, filler);
+            }
         }
+    }
+
+    private ItemStack emptyNoticeHead(Component title, List<Component> lore) {
+        String base64 = plugin.getConfig().getString("heads.empty-notice-base64",
+                "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvYzYxODczMWUwNjMzNzlhZWJmODJmMWQ2NGM0MTljOTBkN2YwYzE2NDhjNTQ4ZTliNjE1MWIxYmFiYTY2ZDcyMyJ9fX0=");
+        ItemStack head = HeadUtil.base64Head(base64);
+        ItemMeta meta = head.getItemMeta();
+        if (meta != null) {
+            meta.displayName(title.decoration(TextDecoration.ITALIC, false));
+            meta.lore(lore);
+            meta.addItemFlags(ItemFlag.values());
+            head.setItemMeta(meta);
+        }
+        return head;
     }
 
     private ItemStack named(Material material, Component name) {
@@ -793,13 +871,29 @@ public final class MenuManager {
     }
 
     private ItemStack button(String materialPath, Material fallback, String base64Path, Component name) {
+        return button(materialPath, fallback, base64Path, name, List.of());
+    }
+
+    private ItemStack button(String materialPath, Material fallback, String base64Path, Component name, List<Component> lore) {
+        ItemStack item;
         if (plugin.getConfig().getBoolean("heads.use-base64-for-buttons", false)) {
             String base64 = plugin.getConfig().getString(base64Path, "");
             if (base64 != null && !base64.isBlank()) {
-                return named(HeadUtil.base64Head(base64), name);
+                item = named(HeadUtil.base64Head(base64), name);
+            } else {
+                item = named(configMaterial(materialPath, fallback), name);
+            }
+        } else {
+            item = named(configMaterial(materialPath, fallback), name);
+        }
+        if (lore != null && !lore.isEmpty()) {
+            ItemMeta meta = item.getItemMeta();
+            if (meta != null) {
+                meta.lore(lore);
+                item.setItemMeta(meta);
             }
         }
-        return named(configMaterial(materialPath, fallback), name);
+        return item;
     }
 
     private Material configMaterial(String path, Material fallback) {
