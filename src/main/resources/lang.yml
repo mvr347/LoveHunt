@@ -42,13 +42,14 @@ extend-not-enough-items: "<red>Недостаточно предметов дл�
 extend-success: "<green>Заказ продлён на 1 день. Списано: <yellow>{amount}× {item}</yellow>."
 pending-rewards-delivered: "<green>Вам выдано {count} отложенных наград."
 reload-success: "<green>Конфигурация LoveHunt перезагружена."
-admin-usage: "<red>Использование: /lovehunt admin <reload|block|unblock|create>"
-admin-block-usage: "<red>Использование: /lovehunt admin block <игрок> <create|accept>"
-admin-unblock-usage: "<red>Использование: /lovehunt admin unblock <игрок> <create|accept>"
+reload-messages-success: "<green>Сообщения LoveHunt перезагружены."
+admin-moved: "<yellow>Эта команда переехала: используйте <aqua>/lovehuntadmin</aqua>.</yellow>"
+admin-block-usage: "<red>Использование: /lovehuntadmin block <игрок> <create|accept>"
+admin-unblock-usage: "<red>Использование: /lovehuntadmin unblock <игрок> <create|accept>"
 admin-block-success: "<green>Игроку {player} запрещено: {action}."
 admin-unblock-success: "<green>Игроку {player} снова разрешено: {action}."
 admin-unknown-player: "<red>Игрок не найден в истории сервера."
-admin-create-usage: "<red>Использование: /lovehunt admin create <player|clan|server> <цель> <количество> [материал]"
+admin-create-usage: "<red>Использование: /lovehuntadmin create <player|clan|server> <цель> <количество> [материал]"
 admin-create-success: "<green>Розыск создан администратором: {target}, награда {amount}× {item}."
 admin-create-failed: "<red>Не удалось создать розыск."
 npc-not-available: "<red>Плагин Citizens не найден на сервере."
@@ -66,6 +67,32 @@ stats-line: "<gray> Рейтинг: <yellow>{rating}</yellow> / 5.0  Выпол�
 top-empty: "<yellow>Пока нет ни одного охотника со статистикой."
 top-header: "<gold>Топ охотников LoveHunt:"
 top-entry: "<gray>{rank}. <yellow>{player}</yellow> — рейтинг <gold>{rating}</gold>, выполнено <green>{completed}</green>, провалено <red>{failed}</red>"
+
+# ========================================== #
+#      КОМАНДЫ (HELP)                        #
+# ========================================== #
+# Единый формат для всех help-выводов плагина: разделитель, список
+# "<aqua>/команда аргументы</aqua> <gray>- описание</gray>", разделитель.
+help-header: "<dark_gray>========== <gold>LoveHunt Помощь</gold> ==========</dark_gray>"
+help-main: "<aqua>/lovehunt</aqua> <gray>- Открыть главное меню розыска (алиасы: /hunt, /охота)</gray>"
+help-hunts: "<aqua>/hunts</aqua> <gray>- Открыть список всех активных розысков</gray>"
+help-create: "<aqua>/lovehunt create</aqua> <gray>- Создать розыск (награда берётся из руки)</gray>"
+help-cancel: "<aqua>/lovehunt cancel</aqua> <gray>- Отменить текущий ввод</gray>"
+help-stats: "<aqua>/lovehunt stats [игрок]</aqua> <gray>- Показать статистику охотника</gray>"
+help-top: "<aqua>/lovehunt top</aqua> <gray>- Топ охотников сервера</gray>"
+help-lovehuntadmin: "<aqua>/lovehuntadmin</aqua> <gray>- Административные команды LoveHunt</gray>"
+help-footer: "<dark_gray>=========================================</dark_gray>"
+
+# ========================================== #
+#      АДМИН-КОМАНДА (/lovehuntadmin)        #
+# ========================================== #
+admin-help-header: "<dark_gray>========== <gold>LoveHunt Admin</gold> ==========</dark_gray>"
+admin-help-reload: "<aqua>/lovehuntadmin reload [all|config|message]</aqua> <gray>- Перезагрузить конфигурацию и/или сообщения</gray>"
+admin-help-block: "<aqua>/lovehuntadmin block <игрок> <create|accept></aqua> <gray>- Запретить игроку действие</gray>"
+admin-help-unblock: "<aqua>/lovehuntadmin unblock <игрок> <create|accept></aqua> <gray>- Снять запрет с игрока</gray>"
+admin-help-create: "<aqua>/lovehuntadmin create <player|clan|server> <игрок> <кол-во> [материал]</aqua> <gray>- Создать розыск от имени администратора</gray>"
+admin-help-npc: "<aqua>/lovehuntadmin npc <bind|unbind></aqua> <gray>- Привязать/отвязать NPC пункта сдачи трофеев</gray>"
+admin-help-footer: "<dark_gray>=========================================</dark_gray>"
 
 gui:
   main-title: "<dark_gray>Главное меню"

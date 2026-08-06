@@ -74,7 +74,7 @@ offline:
   delete-days: 5
 
 citizens:
-  # Bound via /lovehunt npc bind (look at the NPC first). -1 means unbound.
+  # Bound via /lovehuntadmin npc bind (look at the NPC first). -1 means unbound.
   turn-in-npc-id: -1
   turn-in-npc-name: ""
 
