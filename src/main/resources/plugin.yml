@@ -15,10 +15,15 @@ commands:
     aliases:
       - hunt
       - lh
+      - охота
     usage: /<command>
   hunts:
     description: Opens the all-orders LoveHunt screen directly.
     usage: /<command>
+  lovehuntadmin:
+    description: Administrative commands for LoveHunt (reload, block, admin-create, npc binding).
+    permission: lovehunt.admin
+    usage: /<command> <reload|block|unblock|create|npc>
 permissions:
   lovehunt.use:
     default: true

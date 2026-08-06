@@ -1,6 +1,7 @@
 package me.lovelace.loveHunt;
 
 import me.lovelace.loveHunt.api.LoveHuntClans;
+import me.lovelace.loveHunt.command.LoveHuntAdminCommand;
 import me.lovelace.loveHunt.command.LoveHuntCommand;
 import me.lovelace.loveHunt.config.Lang;
 import me.lovelace.loveHunt.config.Settings;
@@ -120,7 +121,7 @@ public final class LoveHunt extends JavaPlugin {
     }
 
     private void registerCommand(MenuManager menuManager) {
-        LoveHuntCommand executor = new LoveHuntCommand(settings, lang, bountyService, menuManager, citizensIntegration);
+        LoveHuntCommand executor = new LoveHuntCommand(settings, lang, bountyService, menuManager);
         PluginCommand command = getCommand("lovehunt");
         if (command == null) {
             throw new IllegalStateException("Command lovehunt is not defined in plugin.yml");
@@ -133,6 +134,14 @@ public final class LoveHunt extends JavaPlugin {
         }
         hunts.setExecutor(executor);
         hunts.setTabCompleter(executor);
+
+        LoveHuntAdminCommand adminExecutor = new LoveHuntAdminCommand(settings, lang, bountyService, citizensIntegration);
+        PluginCommand adminCommand = getCommand("lovehuntadmin");
+        if (adminCommand == null) {
+            throw new IllegalStateException("Command lovehuntadmin is not defined in plugin.yml");
+        }
+        adminCommand.setExecutor(adminExecutor);
+        adminCommand.setTabCompleter(adminExecutor);
     }
 
     private LoveHuntClans resolveClansProvider() {

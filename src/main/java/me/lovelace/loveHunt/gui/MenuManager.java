@@ -12,6 +12,7 @@ import me.lovelace.loveHunt.model.TypeFilter;
 import me.lovelace.loveHunt.service.BountyService;
 import me.lovelace.loveHunt.service.InputMode;
 import me.lovelace.loveHunt.service.PlayerInput;
+import me.lovelace.loveHunt.textures.HeadTextures;
 import me.lovelace.loveHunt.util.HeadUtil;
 import me.lovelace.loveHunt.util.TimeUtil;
 import net.kyori.adventure.text.Component;
@@ -842,8 +843,7 @@ public final class MenuManager {
     }
 
     private ItemStack emptyNoticeHead(Component title, List<Component> lore) {
-        String base64 = plugin.getConfig().getString("heads.empty-notice-base64",
-                "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvYzYxODczMWUwNjMzNzlhZWJmODJmMWQ2NGM0MTljOTBkN2YwYzE2NDhjNTQ4ZTliNjE1MWIxYmFiYTY2ZDcyMyJ9fX0=");
+        String base64 = plugin.getConfig().getString("heads.empty-notice-base64", HeadTextures.EMPTY_NOTICE_DEFAULT);
         ItemStack head = HeadUtil.base64Head(base64);
         ItemMeta meta = head.getItemMeta();
         if (meta != null) {
