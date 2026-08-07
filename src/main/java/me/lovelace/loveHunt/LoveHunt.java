@@ -22,6 +22,7 @@ import me.lovelace.loveHunt.service.ReflectionClansProvider;
 import org.bukkit.Bukkit;
 import org.bukkit.NamespacedKey;
 import org.bukkit.command.PluginCommand;
+import org.bukkit.event.HandlerList;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitTask;
 import me.lovelace.loveHunt.service.LoveHuntAPIImpl;
@@ -95,6 +96,7 @@ public final class LoveHunt extends JavaPlugin {
 
     @Override
     public void onDisable() {
+        HandlerList.unregisterAll(this);
         if (autosaveTask != null) {
             autosaveTask.cancel();
         }
