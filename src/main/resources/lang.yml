@@ -199,7 +199,6 @@ gui:
       - ""
       - "<gray>Отменить ваш заказ и вернуть награду."
       - "<green>ЛКМ <gray>— отменить заказ"
-  manage-title: "<dark_gray>Управление заказом"
   manage-no-hunters: "<yellow>Охотников нет"
   manage-no-hunters-lore:
     - ""
