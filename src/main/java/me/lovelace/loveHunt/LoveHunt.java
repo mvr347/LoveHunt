@@ -3,6 +3,7 @@ package me.lovelace.loveHunt;
 import me.lovelace.loveHunt.api.LoveHuntClans;
 import me.lovelace.loveHunt.command.LoveHuntAdminCommand;
 import me.lovelace.loveHunt.command.LoveHuntCommand;
+import me.lovelace.loveHunt.config.Heads;
 import me.lovelace.loveHunt.config.Lang;
 import me.lovelace.loveHunt.config.Settings;
 import me.lovelace.loveHunt.database.DatabaseManager;
@@ -39,6 +40,7 @@ public final class LoveHunt extends JavaPlugin {
 
     private Settings settings;
     private Lang lang;
+    private Heads heads;
     private DatabaseManager database;
     private BountyService bountyService;
     private RatingService ratingService;
@@ -57,12 +59,14 @@ public final class LoveHunt extends JavaPlugin {
         settings.load();
         lang = new Lang(this);
         lang.load();
+        heads = new Heads(this);
+        heads.load();
 
         database = new DatabaseManager(this, settings);
         LoveHuntClans clans = resolveClansProvider();
         ratingService = new RatingService(this, settings, database);
         bountyService = new BountyService(this, settings, lang, database, clans, ratingService);
-        MenuManager menuManager = new MenuManager(this, settings, lang, bountyService);
+        MenuManager menuManager = new MenuManager(this, settings, lang, heads, bountyService);
         compassService = new CompassService(this, settings, bountyService);
         citizensIntegration = new CitizensIntegration();
 
