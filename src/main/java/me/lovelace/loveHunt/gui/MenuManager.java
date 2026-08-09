@@ -1,6 +1,7 @@
 package me.lovelace.loveHunt.gui;
 
 import me.lovelace.loveHunt.api.LoveHuntClans;
+import me.lovelace.loveHunt.config.Heads;
 import me.lovelace.loveHunt.config.Lang;
 import me.lovelace.loveHunt.config.Settings;
 import me.lovelace.loveHunt.model.Bounty;
@@ -62,14 +63,16 @@ public final class MenuManager {
     private final JavaPlugin plugin;
     private final Settings settings;
     private final Lang lang;
+    private final Heads heads;
     private final BountyService bountyService;
     private final ConcurrentHashMap<UUID, PlayerInput> inputs = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<UUID, CreateSession> createSessions = new ConcurrentHashMap<>();
 
-    public MenuManager(JavaPlugin plugin, Settings settings, Lang lang, BountyService bountyService) {
+    public MenuManager(JavaPlugin plugin, Settings settings, Lang lang, Heads heads, BountyService bountyService) {
         this.plugin = plugin;
         this.settings = settings;
         this.lang = lang;
+        this.heads = heads;
         this.bountyService = bountyService;
     }
 
@@ -79,8 +82,8 @@ public final class MenuManager {
         holder.inventory(inventory);
         fill(inventory);
         inventory.setItem(0, statsButton(player));
-        inventory.setItem(MINE_MAIN_BUTTON, button("gui.items.my-bounties", Material.PLAYER_HEAD, "heads.my-bounties-base64", lang.component("gui.main.mine"), lang.components("gui.main.mine-lore", Map.of(), false)));
-        inventory.setItem(ALL_MAIN_BUTTON, button("gui.items.all-bounties", Material.COMPASS, "heads.all-bounties-base64", lang.component("gui.main.all"), lang.components("gui.main.all-lore", Map.of(), false)));
+        inventory.setItem(MINE_MAIN_BUTTON, button("gui.items.my-bounties", Material.PLAYER_HEAD, "my-bounties-base64", lang.component("gui.main.mine"), lang.components("gui.main.mine-lore", Map.of(), false)));
+        inventory.setItem(ALL_MAIN_BUTTON, button("gui.items.all-bounties", Material.COMPASS, "all-bounties-base64", lang.component("gui.main.all"), lang.components("gui.main.all-lore", Map.of(), false)));
         inventory.setItem(25, createButton());
         inventory.setItem(MAIN_SIZE - 1, closeButton());
         player.openInventory(inventory);
@@ -615,7 +618,7 @@ public final class MenuManager {
             case EXPIRING -> "gui.all.sort-expiring";
             case POPULAR -> "gui.all.sort-popular";
         };
-        return button("gui.items.sort", Material.NAME_TAG, "heads.sort-base64", lang.component(labelKey), lang.components("gui.all.sort-hint", Map.of(), false));
+        return button("gui.items.sort", Material.NAME_TAG, "sort-base64", lang.component(labelKey), lang.components("gui.all.sort-hint", Map.of(), false));
     }
 
     private ItemStack typeButton(TypeFilter typeFilter) {
@@ -625,7 +628,7 @@ public final class MenuManager {
             case CLAN -> "gui.all.type-clan";
             case SERVER -> "gui.all.type-server";
         };
-        return button("gui.items.type-filter", Material.COMPASS, "heads.type-filter-base64", lang.component(labelKey), lang.components("gui.all.type-hint", Map.of(), false));
+        return button("gui.items.type-filter", Material.COMPASS, "type-filter-base64", lang.component(labelKey), lang.components("gui.all.type-hint", Map.of(), false));
     }
 
     private ItemStack clanOnlineButton(boolean onlyMyClan, boolean onlineOnly, Player viewer) {
@@ -639,43 +642,43 @@ public final class MenuManager {
         if (!clanFilterAvailable(viewer)) {
             lore = List.of(lang.component("gui.all.clan-filter-unavailable"));
         }
-        return button("gui.items.clan-filter", Material.SHIELD, "heads.clan-filter-base64", lang.component(labelKey), lore);
+        return button("gui.items.clan-filter", Material.SHIELD, "clan-filter-base64", lang.component(labelKey), lore);
     }
 
     private ItemStack backButton() {
-        return button("gui.items.back", Material.ARROW, "heads.back-base64", lang.component("gui.back"), lang.components("gui.back-lore", Map.of(), false));
+        return button("gui.items.back", Material.ARROW, "back-base64", lang.component("gui.back"), lang.components("gui.back-lore", Map.of(), false));
     }
 
     private ItemStack closeButton() {
-        return button("gui.items.close", Material.BARRIER, "heads.close-base64", lang.component("gui.close"), lang.components("gui.close-lore", Map.of(), false));
+        return button("gui.items.close", Material.BARRIER, "close-base64", lang.component("gui.close"), lang.components("gui.close-lore", Map.of(), false));
     }
 
     private ItemStack createButton() {
-        return button("gui.items.create-bounty", Material.WRITABLE_BOOK, "heads.create-bounty-base64", lang.component("gui.create"), lang.components("gui.create-lore", Map.of(), false));
+        return button("gui.items.create-bounty", Material.WRITABLE_BOOK, "create-bounty-base64", lang.component("gui.create"), lang.components("gui.create-lore", Map.of(), false));
     }
 
     private ItemStack prevButton() {
-        return button("gui.items.previous", Material.ARROW, "heads.previous-base64", lang.component("gui.all.previous"), lang.components("gui.all.previous-lore", Map.of(), false));
+        return button("gui.items.previous", Material.ARROW, "previous-base64", lang.component("gui.all.previous"), lang.components("gui.all.previous-lore", Map.of(), false));
     }
 
     private ItemStack nextButton() {
-        return button("gui.items.next", Material.ARROW, "heads.next-base64", lang.component("gui.all.next"), lang.components("gui.all.next-lore", Map.of(), false));
+        return button("gui.items.next", Material.ARROW, "next-base64", lang.component("gui.all.next"), lang.components("gui.all.next-lore", Map.of(), false));
     }
 
     private ItemStack confirmButton() {
-        return button("gui.items.confirm", Material.LIME_CONCRETE, "heads.confirm-base64", lang.component("gui.confirm.confirm"), lang.components("gui.confirm.confirm-lore", Map.of(), false));
+        return button("gui.items.confirm", Material.LIME_CONCRETE, "confirm-base64", lang.component("gui.confirm.confirm"), lang.components("gui.confirm.confirm-lore", Map.of(), false));
     }
 
     private ItemStack confirmDeleteButton() {
-        return button("gui.items.confirm", Material.LIME_CONCRETE, "heads.confirm-base64", lang.component("gui.confirm.confirm"), lang.components("gui.confirm.confirm-delete-lore", Map.of(), false));
+        return button("gui.items.confirm", Material.LIME_CONCRETE, "confirm-base64", lang.component("gui.confirm.confirm"), lang.components("gui.confirm.confirm-delete-lore", Map.of(), false));
     }
 
     private ItemStack cancelActionButton() {
-        return button("gui.items.cancel", Material.RED_CONCRETE, "heads.close-base64", lang.component("gui.confirm.cancel"), lang.components("gui.confirm.cancel-lore", Map.of(), false));
+        return button("gui.items.cancel", Material.RED_CONCRETE, "close-base64", lang.component("gui.confirm.cancel"), lang.components("gui.confirm.cancel-lore", Map.of(), false));
     }
 
     private ItemStack cancelOrderButton() {
-        return button("gui.items.cancel-order", Material.RED_CONCRETE, "heads.cancel-order-base64", lang.component("gui.confirm.cancel-order"), lang.components("gui.confirm.cancel-order-lore", Map.of(), false));
+        return button("gui.items.cancel-order", Material.RED_CONCRETE, "cancel-order-base64", lang.component("gui.confirm.cancel-order"), lang.components("gui.confirm.cancel-order-lore", Map.of(), false));
     }
 
     private ItemStack statsButton(Player player) {
@@ -741,7 +744,7 @@ public final class MenuManager {
         int cost = Math.max(1, (int) Math.ceil(bounty.reward().amount() * (costPercent / 100.0)));
         List<Component> lore = lang.components("gui.manage-extend-hint",
                 lang.placeholders("amount", String.valueOf(cost), "item", bounty.reward().displayName()), false);
-        return button("gui.items.manage-extend", Material.CLOCK, "heads.extend-base64", lang.component("gui.manage-extend"), lore);
+        return button("gui.items.manage-extend", Material.CLOCK, "extend-base64", lang.component("gui.manage-extend"), lore);
     }
 
     private ItemStack withLore(ItemStack item, Component lore) {
@@ -843,7 +846,7 @@ public final class MenuManager {
     }
 
     private ItemStack emptyNoticeHead(Component title, List<Component> lore) {
-        String base64 = plugin.getConfig().getString("heads.empty-notice-base64", HeadTextures.EMPTY_NOTICE_DEFAULT);
+        String base64 = heads.base64("empty-notice-base64", HeadTextures.EMPTY_NOTICE_DEFAULT);
         ItemStack head = HeadUtil.base64Head(base64);
         ItemMeta meta = head.getItemMeta();
         if (meta != null) {
@@ -876,8 +879,8 @@ public final class MenuManager {
 
     private ItemStack button(String materialPath, Material fallback, String base64Path, Component name, List<Component> lore) {
         ItemStack item;
-        if (plugin.getConfig().getBoolean("heads.use-base64-for-buttons", false)) {
-            String base64 = plugin.getConfig().getString(base64Path, "");
+        if (heads.useBase64ForButtons()) {
+            String base64 = heads.base64(base64Path);
             if (base64 != null && !base64.isBlank()) {
                 item = named(HeadUtil.base64Head(base64), name);
             } else {
