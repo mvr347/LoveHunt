@@ -171,6 +171,9 @@ public final class LoveHuntCommand implements CommandExecutor, TabCompleter {
     @Override
     public @Nullable List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String[] args) {
         if (args.length == 1) {
+            if (!(sender instanceof Player player) || !player.hasPermission("lovehunt.use")) {
+                return List.of("stats", "top", "help");
+            }
             return List.of("cancel", "create", "stats", "top", "help");
         }
         return List.of();
