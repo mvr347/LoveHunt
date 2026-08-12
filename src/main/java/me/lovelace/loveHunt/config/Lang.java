@@ -12,10 +12,12 @@ import java.io.File;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 
 public final class Lang {
     private final JavaPlugin plugin;
     private final MiniMessage miniMessage = MiniMessage.miniMessage();
+    private final Random random = new Random();
     private YamlConfiguration lang;
     private String prefix;
 
@@ -40,6 +42,15 @@ public final class Lang {
         for (Component component : components(key, placeholders, true)) {
             sender.sendMessage(component);
         }
+    }
+
+    /** Отправляет одну случайную строку из списка ключа {@code key}. Ничего не делает, если список пуст. */
+    public void sendRandom(CommandSender sender, String key) {
+        List<Component> options = components(key, Map.of(), true);
+        if (options.isEmpty()) {
+            return;
+        }
+        sender.sendMessage(options.get(random.nextInt(options.size())));
     }
 
     public void sendClickableCancel(CommandSender sender) {
