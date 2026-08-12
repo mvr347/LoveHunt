@@ -511,6 +511,23 @@ public final class BountyService {
         });
     }
 
+    /**
+     * Creates a server bounty on {@code target} using the configured default reward
+     * (creation.default-reward), unless the target already has an active bounty. Used by
+     * LoveBehavior's auto-moderation integration (bounty triggered by politeness dropping to
+     * the "Terrible" level) via LoveHuntAPI#createDefaultServerBountyIfAbsent — that caller
+     * has no reward of its own to hand in, it just wants "the standard bounty, if there isn't
+     * one yet". Existing bounties keep escalating on their own via server-bounty
+     * escalation-percent-per-3-days, so this intentionally does not touch them.
+     */
+    public CompletableFuture<Bounty> createDefaultServerBountyIfAbsent(UUID targetUuid, String targetName) {
+        Bounty existing = activeBountiesByTarget.get(targetUuid);
+        if (existing != null) {
+            return CompletableFuture.completedFuture(existing);
+        }
+        return createServerBounty(targetUuid, targetName, settings.defaultReward());
+    }
+
     public CompletableFuture<Bounty> createServerBounty(UUID targetUuid, String targetName, RewardItem reward) {
         long now = System.currentTimeMillis();
         Bounty draft = new Bounty(0L, BountyType.SERVER, targetUuid, targetName, null, "Server", null, reward, now, null, BountyStatus.ACTIVE);

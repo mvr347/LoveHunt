@@ -76,6 +76,18 @@ public interface LoveHuntAPI {
     CompletableFuture<Bounty> createServerBounty(OfflinePlayer target, RewardItem reward);
 
     /**
+     * Creates a server bounty on {@code target} using the server's configured default reward,
+     * unless the target already has an active bounty (in which case that existing bounty is
+     * returned untouched — it keeps escalating on its own via server-bounty
+     * escalation-percent-per-3-days). Callers that don't have a reward to hand in — e.g. an
+     * external plugin reacting to bad behavior with "just place the standard bounty" — should
+     * use this instead of {@link #createServerBounty} to avoid stacking duplicate bounties.
+     * @param target The target player.
+     * @return a future completing with the active (new or pre-existing) bounty.
+     */
+    CompletableFuture<Bounty> createDefaultServerBountyIfAbsent(OfflinePlayer target);
+
+    /**
      * Cancels a bounty.
      * @param bounty The bounty to cancel.
      */

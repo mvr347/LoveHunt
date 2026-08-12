@@ -64,6 +64,11 @@ public class LoveHuntAPIImpl implements LoveHuntAPI {
     }
 
     @Override
+    public CompletableFuture<Bounty> createDefaultServerBountyIfAbsent(OfflinePlayer target) {
+        return bountyService.createDefaultServerBountyIfAbsent(target.getUniqueId(), target.getName() == null ? "Unknown" : target.getName());
+    }
+
+    @Override
     public void cancelBounty(Bounty bounty) {
         bountyService.cancel(bounty);
     }
