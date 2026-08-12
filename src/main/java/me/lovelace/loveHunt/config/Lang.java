@@ -44,13 +44,23 @@ public final class Lang {
         }
     }
 
-    /** Отправляет одну случайную строку из списка ключа {@code key}. Ничего не делает, если список пуст. */
-    public void sendRandom(CommandSender sender, String key) {
+    /**
+     * Отправляет одну случайную строку из списка ключа {@code key}. Ничего не делает и
+     * возвращает false, если ключ в lang.yml не задан как список (например, старый lang.yml
+     * без новых ключей) — иначе игрок увидел бы сырой текст ключа вместо сообщения.
+     *
+     * @return true, если сообщение реально было отправлено
+     */
+    public boolean sendRandom(CommandSender sender, String key) {
+        if (!lang.isList(key)) {
+            return false;
+        }
         List<Component> options = components(key, Map.of(), true);
         if (options.isEmpty()) {
-            return;
+            return false;
         }
         sender.sendMessage(options.get(random.nextInt(options.size())));
+        return true;
     }
 
     public void sendClickableCancel(CommandSender sender) {
