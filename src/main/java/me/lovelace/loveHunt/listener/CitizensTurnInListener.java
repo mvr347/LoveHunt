@@ -85,10 +85,8 @@ public final class CitizensTurnInListener implements Listener {
             return false;
         }
         return moodKey(player, "turnin-reject-terrible-politeness", "turnin-reject-aggressive-playstyle", null)
-                .map(key -> {
-                    lang.sendRandom(player, key);
-                    return true;
-                }).orElse(false);
+                .map(key -> lang.sendRandom(player, key))
+                .orElse(false);
     }
 
     /** С настроенным шансом говорит фразу под настроение, не блокируя взаимодействие. */
