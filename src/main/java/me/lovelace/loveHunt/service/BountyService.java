@@ -525,17 +525,46 @@ public final class BountyService {
         if (existing != null) {
             return CompletableFuture.completedFuture(existing);
         }
-        return createServerBounty(targetUuid, targetName, settings.defaultReward());
+        RewardItem reward = settings.serverBountyDynamicPricingEnabled()
+                ? dynamicServerReward(targetUuid)
+                : settings.defaultReward();
+        return createServerBounty(targetUuid, targetName, reward, serverBountyLabel(targetUuid));
     }
 
     public CompletableFuture<Bounty> createServerBounty(UUID targetUuid, String targetName, RewardItem reward) {
+        return createServerBounty(targetUuid, targetName, reward, "Server");
+    }
+
+    private CompletableFuture<Bounty> createServerBounty(UUID targetUuid, String targetName, RewardItem reward, String creatorLabel) {
         long now = System.currentTimeMillis();
-        Bounty draft = new Bounty(0L, BountyType.SERVER, targetUuid, targetName, null, "Server", null, reward, now, null, BountyStatus.ACTIVE);
+        Bounty draft = new Bounty(0L, BountyType.SERVER, targetUuid, targetName, null, creatorLabel, null, reward, now, null, BountyStatus.ACTIVE);
         return database.insertBounty(draft).thenApply(bounty -> {
             cache(bounty);
             Bukkit.getPluginManager().callEvent(new BountyCreateEvent(bounty, true));
             return bounty;
         });
+    }
+
+    /**
+     * Награда по умолчанию, масштабированная по ступени стиля игры цели (0..6, из
+     * LoveBehavior): агрессивный дешевле, добрый дороже — "за голову доброго игрока много,
+     * за голову злого немного". Без LoveBehavior/BehaviorLevels множитель нейтральный (1.0),
+     * т.е. поведение как у статичной creation.default-reward.
+     */
+    private RewardItem dynamicServerReward(UUID targetUuid) {
+        RewardItem base = settings.defaultReward();
+        double multiplier = dev.lovelace.lovecore.api.LoveCore.service(dev.lovelace.lovecore.api.social.BehaviorLevels.class)
+                .map(levels -> settings.playstyleRewardMultiplier(levels.playstyleLevel(targetUuid)))
+                .orElse(1.0);
+        int amount = Math.max(1, (int) Math.round(base.amount() * multiplier));
+        return base.withAmount(amount);
+    }
+
+    /** Подпись "заказчика" для автоматического серверного баунти, по ступени стиля игры цели. */
+    private String serverBountyLabel(UUID targetUuid) {
+        return dev.lovelace.lovecore.api.LoveCore.service(dev.lovelace.lovecore.api.social.BehaviorLevels.class)
+                .map(levels -> settings.playstyleBountyLabel(levels.playstyleLevel(targetUuid)))
+                .orElse("Server");
     }
 
     /**

@@ -3,11 +3,14 @@ package me.lovelace.loveHunt.config;
 import me.lovelace.loveHunt.model.RewardItem;
 import me.lovelace.loveHunt.util.ItemUtil;
 import org.bukkit.Material;
+import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.java.JavaPlugin;
 
+import java.util.HashMap;
 import java.util.Locale;
+import java.util.Map;
 
 public final class Settings {
     private final JavaPlugin plugin;
@@ -54,6 +57,10 @@ public final class Settings {
     private int clanMaxDurationDays;
     private int turnInNpcId;
     private String turnInNpcName;
+
+    private boolean serverBountyDynamicPricingEnabled;
+    private final Map<Integer, Double> playstyleRewardMultipliers = new HashMap<>();
+    private final Map<Integer, String> playstyleBountyLabels = new HashMap<>();
 
     public Settings(JavaPlugin plugin) {
         this.plugin = plugin;
@@ -105,6 +112,43 @@ public final class Settings {
         clanMaxDurationDays = Math.max(1, config.getInt("clan-bounty.max-duration-days", 12));
         turnInNpcId = config.getInt("citizens.turn-in-npc-id", -1);
         turnInNpcName = config.getString("citizens.turn-in-npc-name", "");
+
+        serverBountyDynamicPricingEnabled = config.getBoolean("server-bounty.dynamic-pricing.enabled", true);
+        loadPlaystyleMultipliers(config);
+        loadPlaystyleLabels(config);
+    }
+
+    /**
+     * Множитель награды по ступени стиля игры (0..6, из LoveBehavior) — агрессивный стиль
+     * дешевле, добрый дороже. Читается из конфига таблицей "уровень -> множитель", с зашитыми
+     * по умолчанию значениями на случай пустого/битого конфига.
+     */
+    private void loadPlaystyleMultipliers(FileConfiguration config) {
+        ConfigurationSection section = config.getConfigurationSection("server-bounty.dynamic-pricing.reward-multiplier");
+        Map<Integer, Double> defaults = Map.of(
+                0, 0.5, 1, 0.65, 2, 0.8, 3, 1.0, 4, 1.3, 5, 1.7, 6, 2.0);
+        for (int level = 0; level <= 6; level++) {
+            double fallback = defaults.get(level);
+            double value = section == null ? fallback : section.getDouble(String.valueOf(level), fallback);
+            playstyleRewardMultipliers.put(level, value);
+        }
+    }
+
+    private void loadPlaystyleLabels(FileConfiguration config) {
+        ConfigurationSection section = config.getConfigurationSection("server-bounty.dynamic-pricing.bounty-label");
+        Map<Integer, String> defaults = Map.of(
+                0, "Сервер (Агрессивный преступник)",
+                1, "Сервер (Конфликтный смутьян)",
+                2, "Сервер (Раздражительный торговец)",
+                3, "Сервер",
+                4, "Сервер (Спорная личность)",
+                5, "Сервер (Подозрительный союзник)",
+                6, "Сервер (Добрая душа)");
+        for (int level = 0; level <= 6; level++) {
+            String fallback = defaults.get(level);
+            String value = section == null ? fallback : section.getString(String.valueOf(level), fallback);
+            playstyleBountyLabels.put(level, value);
+        }
     }
 
     private int clampPercent(int value) {
@@ -120,6 +164,20 @@ public final class Settings {
         int amount = Math.max(1, config.getInt(path + ".amount", fallbackAmount));
         ItemStack prototype = new ItemStack(material, 1);
         return new RewardItem(material, amount, prototype, ItemUtil.readableName(material));
+    }
+
+    public boolean serverBountyDynamicPricingEnabled() {
+        return serverBountyDynamicPricingEnabled;
+    }
+
+    /** Множитель на creation.default-reward.amount для ступени стиля игры цели (0..6). */
+    public double playstyleRewardMultiplier(int playstyleLevel) {
+        return playstyleRewardMultipliers.getOrDefault(playstyleLevel, 1.0);
+    }
+
+    /** Подпись "заказчика" серверного баунти для ступени стиля игры цели (0..6). */
+    public String playstyleBountyLabel(int playstyleLevel) {
+        return playstyleBountyLabels.getOrDefault(playstyleLevel, "Server");
     }
 
     public String databaseFile() {
