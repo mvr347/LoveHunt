@@ -43,6 +43,33 @@ server-bounty:
   escalation-percent-per-3-days: 1
   escalation-cap-percent: 30
 
+  # Auto-bounties created by LoveBehavior when a player's politeness bottoms out
+  # ("Ужасно"/Terrible). Scales creation.default-reward by the target's LoveBehavior
+  # playstyle level (0 = Агрессивный .. 6 = Добрый) instead of always using the flat
+  # default-reward amount, and swaps the "creator" label shown on the bounty accordingly.
+  # No-ops (flat default-reward, "Server" label) if LoveBehavior isn't installed.
+  dynamic-pricing:
+    enabled: true
+    # Множитель на creation.default-reward.amount по ступени стиля игры цели (0..6).
+    # Агрессивный (0) дешевле, добрый (6) дороже.
+    reward-multiplier:
+      "0": 0.5
+      "1": 0.65
+      "2": 0.8
+      "3": 1.0
+      "4": 1.3
+      "5": 1.7
+      "6": 2.0
+    # Подпись "заказчика" баунти по той же ступени.
+    bounty-label:
+      "0": "Сервер (Агрессивный преступник)"
+      "1": "Сервер (Конфликтный смутьян)"
+      "2": "Сервер (Раздражительный торговец)"
+      "3": "Сервер"
+      "4": "Сервер (Спорная личность)"
+      "5": "Сервер (Подозрительный союзник)"
+      "6": "Сервер (Добрая душа)"
+
 economy:
   # Penalty withheld ("forfeited to the server") when a creator cancels their own bounty early.
   cancel-penalty-percent: 35
