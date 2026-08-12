@@ -105,6 +105,18 @@ citizens:
   turn-in-npc-id: -1
   turn-in-npc-name: ""
 
+# "Живые" реакции сдатчика трофеев на реальные вежливость/стиль игры охотника (LoveBehavior).
+# reject по умолчанию выключен: сдатчик трофеев тематически не должен отказывать буйным
+# охотникам в оплате за уже сделанную работу (в отличие от магазинных НПС в других плагинах
+# экосистемы). ambient — необязательные фразы, сдачу трофея не блокируют. Фразы — в lang.yml
+# (turnin-reject-*/turnin-ambient-*). Без LoveBehavior секция не действует.
+npc-dialogue:
+  reject:
+    enabled: false
+  ambient:
+    enabled: true
+    chance: 0.35
+
 gui:
   main-title: "<dark_gray>LoveHunt"
   all-title: "<dark_gray>Все розыски"

@@ -62,6 +62,10 @@ public final class Settings {
     private final Map<Integer, Double> playstyleRewardMultipliers = new HashMap<>();
     private final Map<Integer, String> playstyleBountyLabels = new HashMap<>();
 
+    private boolean npcDialogueRejectEnabled;
+    private boolean npcDialogueAmbientEnabled;
+    private double npcDialogueAmbientChance;
+
     public Settings(JavaPlugin plugin) {
         this.plugin = plugin;
     }
@@ -116,6 +120,13 @@ public final class Settings {
         serverBountyDynamicPricingEnabled = config.getBoolean("server-bounty.dynamic-pricing.enabled", true);
         loadPlaystyleMultipliers(config);
         loadPlaystyleLabels(config);
+
+        // Сдатчик трофеев тематически не должен отказывать буйным охотникам — охота их работа,
+        // поэтому reject по умолчанию выключен здесь (в отличие от магазинных НПС в других
+        // плагинах экосистемы). ambient — необязательные фразы, сдачу трофея не блокируют.
+        npcDialogueRejectEnabled = config.getBoolean("npc-dialogue.reject.enabled", false);
+        npcDialogueAmbientEnabled = config.getBoolean("npc-dialogue.ambient.enabled", true);
+        npcDialogueAmbientChance = config.getDouble("npc-dialogue.ambient.chance", 0.35);
     }
 
     /**
@@ -178,6 +189,18 @@ public final class Settings {
     /** Подпись "заказчика" серверного баунти для ступени стиля игры цели (0..6). */
     public String playstyleBountyLabel(int playstyleLevel) {
         return playstyleBountyLabels.getOrDefault(playstyleLevel, "Server");
+    }
+
+    public boolean npcDialogueRejectEnabled() {
+        return npcDialogueRejectEnabled;
+    }
+
+    public boolean npcDialogueAmbientEnabled() {
+        return npcDialogueAmbientEnabled;
+    }
+
+    public double npcDialogueAmbientChance() {
+        return npcDialogueAmbientChance;
     }
 
     public String databaseFile() {
