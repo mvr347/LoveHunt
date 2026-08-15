@@ -246,16 +246,40 @@ public final class BountyService {
             case CLAN -> settings.clanMaxHunters();
             case PLAYER -> settings.playerMaxHunters();
         };
-        if (hunters.size() >= maxHunters) {
-            return CompletableFuture.completedFuture(false);
+        // Reserve the slot synchronously (main thread) BEFORE the async DB write, not after it
+        // completes: reserving inside the .thenApply callback left a window where two near-
+        // simultaneous accept() calls could both read the pre-reservation hunters.size() and both
+        // pass the maxHunters/hasAccepted checks, over-filling a bounty. `hunters` is a
+        // concurrent set, so add() itself is the atomic check-and-set; synchronizing the
+        // size-check + add pair on the same set additionally protects against a genuinely
+        // concurrent caller (e.g. two threads hitting the API) rather than relying solely on
+        // Bukkit's single-threaded event dispatch.
+        synchronized (hunters) {
+            if (hunters.size() >= maxHunters || !hunters.add(hunter.getUniqueId())) {
+                return CompletableFuture.completedFuture(false);
+            }
         }
+        acceptedByHunter.computeIfAbsent(hunter.getUniqueId(), ignored -> ConcurrentHashMap.newKeySet()).add(bounty.id());
         return database.insertHunter(bounty.id(), hunter.getUniqueId(), System.currentTimeMillis()).thenApply(inserted -> {
             if (!inserted) {
+                // Should not normally happen given the in-memory reservation above, but if the DB
+                // already had this row (e.g. state drift), roll back the optimistic reservation
+                // rather than lying to the caller about having accepted the bounty.
+                hunters.remove(hunter.getUniqueId());
+                acceptedByHunter.getOrDefault(hunter.getUniqueId(), Set.of()).remove(bounty.id());
                 return false;
             }
-            hunters.add(hunter.getUniqueId());
-            acceptedByHunter.computeIfAbsent(hunter.getUniqueId(), ignored -> ConcurrentHashMap.newKeySet()).add(bounty.id());
             return true;
+        }).exceptionally(throwable -> {
+            // A failed persist must never look like a successful accept: roll back the
+            // reservation and surface the failure instead of silently swallowing it (previously
+            // this future could complete exceptionally with nobody downstream ever attaching an
+            // .exceptionally handler, so the player received no feedback at all).
+            hunters.remove(hunter.getUniqueId());
+            acceptedByHunter.getOrDefault(hunter.getUniqueId(), Set.of()).remove(bounty.id());
+            plugin.getLogger().log(Level.SEVERE, "Unable to persist bounty accept for hunter " + hunter.getUniqueId()
+                    + " on bounty " + bounty.id(), throwable);
+            return false;
         });
     }
 
