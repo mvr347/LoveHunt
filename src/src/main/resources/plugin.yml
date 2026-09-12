@@ -1,0 +1,31 @@
+name: LoveHunt
+version: '${version}'
+main: me.lovelace.loveHunt.LoveHunt
+api-version: '26.2'
+author: Lovelace
+description: Item-based bounty hunting for Paper/Purpur.
+softdepend:
+  - Clans
+  - Citizens
+  - PlaceholderAPI
+  - LoveCore
+commands:
+  lovehunt:
+    description: Opens LoveHunt menu.
+    aliases:
+      - hunt
+      - lh
+      - охота
+    usage: /<command>
+  hunts:
+    description: Opens the all-orders LoveHunt screen directly.
+    usage: /<command>
+  lovehuntadmin:
+    description: Administrative commands for LoveHunt (reload, block, admin-create, npc binding).
+    permission: lovehunt.admin
+    usage: /<command> <reload|block|unblock|create|npc>
+permissions:
+  lovehunt.use:
+    default: true
+  lovehunt.admin:
+    default: op

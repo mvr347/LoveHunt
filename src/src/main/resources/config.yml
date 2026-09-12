@@ -1,0 +1,141 @@
+database:
+  file: lovehunt.db
+  pool-size: 4
+
+performance:
+  autosave-minutes: 5
+  command-cooldown-ms: 700
+  compass-update-seconds: 8
+
+creation:
+  material: EMERALD
+  amount: 1
+  base-duration-hours: 72 # base bounty lifetime before any extension
+  extend-cost-percent: 5 # % of reward added per +1 day extension
+  max-duration-days: 10 # absolute cap including extensions
+  same-target-cooldown-days: 3
+  target-min-account-age-days: 3
+  max-active-by-player: 5
+  max-hunters: 25 # max hunters that may accept a single player bounty at once
+
+  reward-source: HAND # HAND or CONFIG
+  default-reward:
+    material: EMERALD
+    amount: 64
+  minimum-reward:
+clan-bounty:
+  # Клановый контракт выписывается только на игрока враждебного клана
+  enemies-only: true
+  # Сколько списывается из клановой казны за контракт. 0 — бесплатно
+  treasury-cost: 250
+  enabled: true
+  max-targets: 10
+  per-player-cooldown-hours: 24
+  base-duration-hours: 168
+  extend-cost-percent: 7
+  max-duration-days: 12
+  max-hunters: 25 # max hunters that may accept a single clan bounty at once
+
+server-bounty:
+  max-hunters: 25
+  offline-freeze-days: 3
+  offline-delete-days: 180 # ~6 months
+  escalation-percent-per-3-days: 1
+  escalation-cap-percent: 30
+
+  # Auto-bounties created by LoveBehavior when a player's politeness bottoms out
+  # ("Ужасно"/Terrible). Scales creation.default-reward by the target's LoveBehavior
+  # playstyle level (0 = Агрессивный .. 6 = Добрый) instead of always using the flat
+  # default-reward amount, and swaps the "creator" label shown on the bounty accordingly.
+  # No-ops (flat default-reward, "Server" label) if LoveBehavior isn't installed.
+  dynamic-pricing:
+    enabled: true
+    # Множитель на creation.default-reward.amount по ступени стиля игры цели (0..6).
+    # Агрессивный (0) дешевле, добрый (6) дороже.
+    reward-multiplier:
+      "0": 0.5
+      "1": 0.65
+      "2": 0.8
+      "3": 1.0
+      "4": 1.3
+      "5": 1.7
+      "6": 2.0
+    # Подпись "заказчика" баунти по той же ступени.
+    bounty-label:
+      "0": "Сервер (Агрессивный преступник)"
+      "1": "Сервер (Конфликтный смутьян)"
+      "2": "Сервер (Раздражительный торговец)"
+      "3": "Сервер"
+      "4": "Сервер (Спорная личность)"
+      "5": "Сервер (Подозрительный союзник)"
+      "6": "Сервер (Добрая душа)"
+
+economy:
+  # Penalty withheld ("forfeited to the server") when a creator cancels their own bounty early.
+  cancel-penalty-percent: 35
+  # Penalty withheld when a bounty resolves naturally (expires) without being claimed.
+  expiry-penalty-percent: 35
+  # Penalty withheld when a bounty is deleted because its target has been offline too long.
+  offline-delete-penalty-percent: 10
+  # Hunter reward modifier based on rating (0-5 scale, default 2.5). At/above this rating the
+  # hunter gets a bonus, scaled linearly up to rating-bonus-cap-percent at rating 5.0.
+  rating-bonus-threshold: 4.0
+  rating-bonus-cap-percent: 20
+  # At/below this rating the hunter's reward is penalized, scaled linearly down to
+  # rating-penalty-cap-percent at rating 0.0.
+  rating-penalty-threshold: 1.0
+  rating-penalty-cap-percent: 20
+  # Рейтинг, при котором охотник перестаёт брать розыски, пока не поправит его
+  # выполненными контрактами. 0 или меньше — проверка отключена.
+  accept-block-rating: 0.5
+  # TODO: forfeited/withheld percentages above currently have nowhere real to go since the
+  # plugin has no internal currency or bank - the withheld portion of the reward is simply not
+  # paid out (destroyed). Revisit once ItemsAdder-based economy/value integration lands so this
+  # can flow into a real sink (server fund, ItemsAdder currency, etc).
+
+offline:
+  # Player/clan bounties: target offline this long -> bounty is frozen (hunters can't accept).
+  freeze-days: 2
+  # Player/clan bounties: target offline this long -> bounty is deleted and refunded
+  # (minus economy.offline-delete-penalty-percent) to the creator.
+  delete-days: 5
+
+citizens:
+  # Bound via /lovehuntadmin npc bind (look at the NPC first). -1 means unbound.
+  turn-in-npc-id: -1
+  turn-in-npc-name: ""
+
+# "Живые" реакции сдатчика трофеев на реальные вежливость/стиль игры охотника (LoveBehavior).
+# reject по умолчанию выключен: сдатчик трофеев тематически не должен отказывать буйным
+# охотникам в оплате за уже сделанную работу (в отличие от магазинных НПС в других плагинах
+# экосистемы). ambient — необязательные фразы, сдачу трофея не блокируют. Фразы — в lang.yml
+# (turnin-reject-*/turnin-ambient-*). Без LoveBehavior секция не действует.
+npc-dialogue:
+  reject:
+    enabled: false
+  ambient:
+    enabled: true
+    chance: 0.35
+
+gui:
+  main-title: "<dark_gray>LoveHunt"
+  all-title: "<dark_gray>Все розыски"
+  mine-title: "<dark_gray>Мои розыски"
+  confirm-create-title: "<dark_gray>Подтверждение заказа"
+  confirm-accept-title: "<dark_gray>Принять розыск"
+  items:
+    filler: BLACK_STAINED_GLASS_PANE
+    all-bounties: COMPASS
+    my-bounties: PLAYER_HEAD
+    create-bounty: WRITABLE_BOOK
+    sort: NAME_TAG
+    type-filter: COMPASS
+    clan-filter: SHIELD
+    reset: BARRIER
+    search: OAK_SIGN
+    previous: ARROW
+    next: ARROW
+    back: ARROW
+    confirm: LIME_CONCRETE
+    cancel: RED_CONCRETE
+    cancel-order: RED_CONCRETE
