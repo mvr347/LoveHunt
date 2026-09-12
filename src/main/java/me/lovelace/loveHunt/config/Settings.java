@@ -69,6 +69,11 @@ public final class Settings {
     private boolean npcDialogueAmbientEnabled;
     private double npcDialogueAmbientChance;
 
+    private boolean hunterPlaystyleBonusEnabled;
+    private int hunterPlaystyleAggressiveThreshold;
+    private double hunterPlaystyleAggressiveBonusPercent;
+    private double hunterPlaystyleKindPenaltyPercent;
+
     public Settings(JavaPlugin plugin) {
         this.plugin = plugin;
     }
@@ -133,6 +138,11 @@ public final class Settings {
         npcDialogueRejectEnabled = config.getBoolean("npc-dialogue.reject.enabled", false);
         npcDialogueAmbientEnabled = config.getBoolean("npc-dialogue.ambient.enabled", true);
         npcDialogueAmbientChance = config.getDouble("npc-dialogue.ambient.chance", 0.35);
+
+        hunterPlaystyleBonusEnabled = config.getBoolean("hunter-reward.playstyle-bonus.enabled", true);
+        hunterPlaystyleAggressiveThreshold = config.getInt("hunter-reward.playstyle-bonus.aggressive-threshold", 0);
+        hunterPlaystyleAggressiveBonusPercent = config.getDouble("hunter-reward.playstyle-bonus.aggressive-bonus-percent", 20.0) / 100.0;
+        hunterPlaystyleKindPenaltyPercent = config.getDouble("hunter-reward.playstyle-bonus.kind-penalty-percent", 20.0) / 100.0;
     }
 
     /**
@@ -331,6 +341,22 @@ public final class Settings {
 
     public int serverEscalationCapPercent() {
         return serverEscalationCapPercent;
+    }
+
+    public boolean hunterPlaystyleBonusEnabled() {
+        return hunterPlaystyleBonusEnabled;
+    }
+
+    public int hunterPlaystyleAggressiveThreshold() {
+        return hunterPlaystyleAggressiveThreshold;
+    }
+
+    public double hunterPlaystyleAggressiveBonusPercent() {
+        return hunterPlaystyleAggressiveBonusPercent;
+    }
+
+    public double hunterPlaystyleKindPenaltyPercent() {
+        return hunterPlaystyleKindPenaltyPercent;
     }
 
     public double ratingBonusThreshold() {
