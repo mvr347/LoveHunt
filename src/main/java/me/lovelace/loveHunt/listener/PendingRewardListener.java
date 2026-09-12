@@ -17,12 +17,14 @@ public final class PendingRewardListener implements Listener {
     public void onJoin(PlayerJoinEvent event) {
         if (isAuthenticated(event.getPlayer())) {
             bountyService.deliverPendingRewards(event.getPlayer());
+            bountyService.scheduleServerHuntCheck(event.getPlayer());
         }
     }
 
     @EventHandler
     public void onAuthenticated(dev.lovelace.lovecore.api.auth.PlayerAuthenticatedEvent event) {
         bountyService.deliverPendingRewards(event.player());
+        bountyService.scheduleServerHuntCheck(event.player());
     }
 
     /**

@@ -23,6 +23,8 @@ import me.lovelace.loveHunt.api.event.BountyCreateEvent;
 import me.lovelace.loveHunt.api.event.BountyAcceptEvent;
 import me.lovelace.loveHunt.api.event.BountyCancelEvent;
 import me.lovelace.loveHunt.api.event.BountyClaimEvent;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.title.Title;
 
 import java.time.Duration;
 import java.util.Collection;
@@ -52,6 +54,7 @@ public final class BountyService {
     private final ConcurrentHashMap<Long, Set<UUID>> huntersByBounty = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<UUID, Set<Long>> acceptedByHunter = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, Long> cooldowns = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<UUID, Long> lastAnnouncedServerHunt = new ConcurrentHashMap<>();
 
     private volatile boolean ready;
 
@@ -589,6 +592,144 @@ public final class BountyService {
         return dev.lovelace.lovecore.api.LoveCore.service(dev.lovelace.lovecore.api.social.BehaviorLevels.class)
                 .map(levels -> settings.playstyleBountyLabel(levels.playstyleLevel(targetUuid)))
                 .orElse("Server");
+    }
+
+    /**
+     * Обрабатывает выход игрока с сервера:
+     * если на игрока был активен контракт (в т.ч. серверный розыск), контракт снимается с отслеживания
+     * охотниками, охотники уведомляются без штрафа рейтинга, а активный серверный контракт аннулируется.
+     */
+    public void handleTargetQuit(Player target) {
+        if (target == null) {
+            return;
+        }
+        UUID targetUuid = target.getUniqueId();
+        Bounty bounty = activeBountiesByTarget.get(targetUuid);
+        if (bounty == null) {
+            return;
+        }
+
+        // 1. Уведомляем охотников и снимаем активный контракт без штрафа рейтинга
+        Set<UUID> hunterUuids = huntersByBounty.remove(bounty.id());
+        if (hunterUuids != null) {
+            for (UUID hunterUuid : hunterUuids) {
+                Set<Long> accepted = acceptedByHunter.get(hunterUuid);
+                if (accepted != null) {
+                    accepted.remove(bounty.id());
+                }
+                database.deleteHunter(bounty.id(), hunterUuid);
+                Player hunter = Bukkit.getPlayer(hunterUuid);
+                if (hunter != null && hunter.isOnline()) {
+                    lang.send(hunter, "target-fled-hunter-notify", lang.placeholders("target", target.getName()));
+                }
+            }
+        }
+
+        // 2. Для серверной охоты контракт пропадает при выходе игрока с сервера
+        if (bounty.type() == BountyType.SERVER) {
+            removeCached(bounty, BountyStatus.CANCELLED);
+            database.updateStatus(bounty.id(), BountyStatus.CANCELLED);
+        }
+    }
+
+    /**
+     * Проверяет игрока через небольшую задержку после входа:
+     * если игрок имеет статус Изгоя (уровень вежливости 0) или на него положена серверная охота,
+     * Глашатай объявляет охоту с оповещением в чат, тайтлом и звуком рога.
+     */
+    public void scheduleServerHuntCheck(Player player) {
+        if (player == null || !player.isOnline()) {
+            return;
+        }
+        UUID uuid = player.getUniqueId();
+        String name = player.getName();
+        long delayTicks = settings.serverAnnouncementDelaySeconds() * 20L;
+
+        Bukkit.getScheduler().runTaskLater(plugin, () -> {
+            Player current = Bukkit.getPlayer(uuid);
+            if (current == null || !current.isOnline()) {
+                return;
+            }
+
+            boolean isOutcast = false;
+            try {
+                if (Bukkit.getPluginManager().getPlugin("LoveCore") != null) {
+                    isOutcast = dev.lovelace.lovecore.api.LoveCore.service(dev.lovelace.lovecore.api.social.BehaviorLevels.class)
+                            .map(levels -> levels.politenessLevel(uuid) <= 0)
+                            .orElse(false);
+                }
+            } catch (Throwable ignored) {}
+
+            Bounty existing = activeBountiesByTarget.get(uuid);
+            boolean hasActiveServerBounty = existing != null && existing.type() == BountyType.SERVER;
+
+            if (isOutcast || hasActiveServerBounty) {
+                if (existing == null) {
+                    createDefaultServerBountyIfAbsent(uuid, name).thenAccept(bounty -> {
+                        Bukkit.getScheduler().runTask(plugin, () -> announceServerHunt(bounty, current));
+                    });
+                } else {
+                    announceServerHunt(existing, current);
+                }
+            }
+        }, Math.max(20L, delayTicks));
+    }
+
+    /**
+     * Торжественное объявление серверной охоты от лица Глашатая:
+     * трансляция в чат "[Голос Королевства]", полноэкранный тайтл и звук боевого рога всем игрокам.
+     */
+    public void announceServerHunt(Bounty bounty, Player target) {
+        if (bounty == null || target == null || !target.isOnline() || !settings.serverAnnouncementHeraldEnabled()) {
+            return;
+        }
+        UUID uuid = target.getUniqueId();
+        long now = System.currentTimeMillis();
+        long cooldownMs = Duration.ofMinutes(settings.serverAnnouncementCooldownMinutes()).toMillis();
+        Long lastAnnounced = lastAnnouncedServerHunt.get(uuid);
+        if (lastAnnounced != null && now - lastAnnounced < cooldownMs) {
+            return;
+        }
+        lastAnnouncedServerHunt.put(uuid, now);
+
+        RewardItem reward = bounty.reward();
+        Map<String, String> placeholders = lang.placeholders(
+                "target", target.getName(),
+                "amount", String.valueOf(reward.amount()),
+                "item", reward.displayName()
+        );
+
+        // 1. Прокламация Глашатая в чат
+        Component broadcastMsg = lang.component("herald-hunt-broadcast", placeholders, false);
+        Bukkit.broadcast(broadcastMsg);
+
+        // 2. Тайтл всем игрокам
+        Component titleComp = lang.component("herald-hunt-title", placeholders, false);
+        Component subtitleComp = lang.component("herald-hunt-subtitle", placeholders, false);
+        Title title = Title.title(
+                titleComp,
+                subtitleComp,
+                Title.Times.times(
+                        Duration.ofMillis(500),
+                        Duration.ofMillis(3500),
+                        Duration.ofMillis(1000)
+                )
+        );
+
+        // 3. Звук рога (EVENT_RAID_HORN)
+        org.bukkit.Sound hornSound;
+        try {
+            hornSound = org.bukkit.Sound.valueOf("EVENT_RAID_HORN");
+        } catch (Throwable t) {
+            hornSound = org.bukkit.Sound.ENTITY_WITHER_SPAWN;
+        }
+
+        for (Player online : Bukkit.getOnlinePlayers()) {
+            online.showTitle(title);
+            try {
+                online.playSound(online.getLocation(), hornSound, 1.0f, 1.0f);
+            } catch (Throwable ignored) {}
+        }
     }
 
     /**

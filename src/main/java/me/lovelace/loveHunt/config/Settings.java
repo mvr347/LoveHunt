@@ -34,6 +34,9 @@ public final class Settings {
     private int playerMaxHunters;
     private int clanMaxHunters;
     private int serverMaxHunters;
+    private int serverAnnouncementDelaySeconds;
+    private int serverAnnouncementCooldownMinutes;
+    private boolean serverAnnouncementHeraldEnabled;
 
     private int cancelPenaltyPercent;
     private int expiryPenaltyPercent;
@@ -93,6 +96,9 @@ public final class Settings {
         clanCooldownHours = Math.max(1, config.getInt("clan-bounty.per-player-cooldown-hours", 24));
         clanMaxHunters = Math.max(1, config.getInt("clan-bounty.max-hunters", 25));
         serverMaxHunters = Math.max(1, config.getInt("server-bounty.max-hunters", 25));
+        serverAnnouncementDelaySeconds = Math.max(1, config.getInt("server-bounty.announcement.delay-seconds", 20));
+        serverAnnouncementCooldownMinutes = Math.max(1, config.getInt("server-bounty.announcement.cooldown-minutes", 5));
+        serverAnnouncementHeraldEnabled = config.getBoolean("server-bounty.announcement.herald-enabled", true);
 
         cancelPenaltyPercent = clampPercent(config.getInt("economy.cancel-penalty-percent", 35));
         expiryPenaltyPercent = clampPercent(config.getInt("economy.expiry-penalty-percent", 35));
@@ -277,6 +283,18 @@ public final class Settings {
 
     public int serverMaxHunters() {
         return serverMaxHunters;
+    }
+
+    public int serverAnnouncementDelaySeconds() {
+        return serverAnnouncementDelaySeconds;
+    }
+
+    public int serverAnnouncementCooldownMinutes() {
+        return serverAnnouncementCooldownMinutes;
+    }
+
+    public boolean serverAnnouncementHeraldEnabled() {
+        return serverAnnouncementHeraldEnabled;
     }
 
     public int cancelPenaltyPercent() {

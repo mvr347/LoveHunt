@@ -276,6 +276,29 @@ public final class DatabaseManager {
         });
     }
 
+    public CompletableFuture<Boolean> deleteHunter(long bountyId, UUID hunter) {
+        return supplyAsync(() -> {
+            try (Connection connection = dataSource.getConnection();
+                 PreparedStatement statement = connection.prepareStatement(
+                         "DELETE FROM bounty_hunters WHERE bounty_id = ? AND hunter_uuid = ?")) {
+                statement.setLong(1, bountyId);
+                statement.setString(2, hunter.toString());
+                return statement.executeUpdate() > 0;
+            }
+        });
+    }
+
+    public CompletableFuture<Boolean> deleteHuntersByBounty(long bountyId) {
+        return supplyAsync(() -> {
+            try (Connection connection = dataSource.getConnection();
+                 PreparedStatement statement = connection.prepareStatement(
+                         "DELETE FROM bounty_hunters WHERE bounty_id = ?")) {
+                statement.setLong(1, bountyId);
+                return statement.executeUpdate() > 0;
+            }
+        });
+    }
+
     public CompletableFuture<Map<UUID, HunterRating>> loadRatings() {
         return supplyAsync(() -> {
             Map<UUID, HunterRating> ratings = new HashMap<>();

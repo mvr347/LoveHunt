@@ -61,6 +61,7 @@ public final class BountyDeathListener implements Listener {
     @EventHandler
     public void onQuit(PlayerQuitEvent event) {
         lastHitByVictim.remove(event.getPlayer().getUniqueId());
+        bountyService.handleTargetQuit(event.getPlayer());
     }
 
     @EventHandler
