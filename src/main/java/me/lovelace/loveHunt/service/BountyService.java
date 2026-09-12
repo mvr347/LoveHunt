@@ -323,6 +323,7 @@ public final class BountyService {
         }
         HunterRating rating = ratingService.get(hunter.getUniqueId());
         amount = ratingService.applyRewardModifier(amount, rating.rating());
+        amount = applyHunterPlaystyleBonus(amount, hunter.getUniqueId());
         RewardItem finalReward = bounty.reward().withAmount(Math.max(1, amount));
 
         ratingService.recordCompletion(hunter.getUniqueId());
@@ -353,6 +354,30 @@ public final class BountyService {
         } catch (Throwable t) {
             plugin.getLogger().warning("Не удалось отчитаться перед LoveCore о выполненном контракте: " + t.getMessage());
         }
+    }
+
+    /**
+     * Бонус/штраф к награде за сдачу трофея по стилю игры самого охотника (LoveCore.BehaviorLevels,
+     * из LoveBehavior) — агрессивный охотник получает больше, добрый меньше ("из миротворца плохой
+     * охотник"), симметрично тому, как агрессивным отдают больше в бою, а добрым — в торговле.
+     * Без LoveBehavior или у нейтральных охотников — без изменений.
+     */
+    private int applyHunterPlaystyleBonus(int amount, UUID hunterId) {
+        if (!settings.hunterPlaystyleBonusEnabled()) {
+            return amount;
+        }
+        return dev.lovelace.lovecore.api.LoveCore.service(dev.lovelace.lovecore.api.social.BehaviorLevels.class)
+                .map(levels -> {
+                    int playstyle = levels.playstyleLevel(hunterId);
+                    double multiplier = 1.0;
+                    if (playstyle <= settings.hunterPlaystyleAggressiveThreshold()) {
+                        multiplier = 1.0 + settings.hunterPlaystyleAggressiveBonusPercent();
+                    } else if (playstyle >= dev.lovelace.lovecore.api.social.BehaviorLevels.MAX_LEVEL) {
+                        multiplier = 1.0 - settings.hunterPlaystyleKindPenaltyPercent();
+                    }
+                    return Math.max(1, (int) Math.round(amount * multiplier));
+                })
+                .orElse(amount);
     }
 
     private int applyServerEscalation(Bounty bounty, int baseAmount) {
