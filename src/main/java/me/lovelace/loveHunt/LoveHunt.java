@@ -81,7 +81,7 @@ public final class LoveHunt extends JavaPlugin {
         Bukkit.getPluginManager().registerEvents(new ChatInputListener(this, menuManager), this);
         Bukkit.getPluginManager().registerEvents(new BountyDeathListener(bountyService, lang), this);
         Bukkit.getPluginManager().registerEvents(new PendingRewardListener(bountyService), this);
-        Bukkit.getPluginManager().registerEvents(new CitizensTurnInListener(settings, lang, bountyService, citizensIntegration), this);
+        Bukkit.getPluginManager().registerEvents(new CitizensTurnInListener(settings, lang, bountyService, citizensIntegration, menuManager), this);
 
         database.initialize()
                 .thenCompose(ignored -> bountyService.load())
