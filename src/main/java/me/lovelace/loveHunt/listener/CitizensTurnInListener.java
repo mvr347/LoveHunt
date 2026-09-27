@@ -5,13 +5,18 @@ import dev.lovelace.lovecore.api.social.BehaviorLevels;
 import me.lovelace.loveHunt.LoveHunt;
 import me.lovelace.loveHunt.config.Lang;
 import me.lovelace.loveHunt.config.Settings;
+import me.lovelace.loveHunt.gui.MenuManager;
 import me.lovelace.loveHunt.model.Bounty;
 import me.lovelace.loveHunt.service.BountyService;
 import me.lovelace.loveHunt.service.CitizensIntegration;
+import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
+import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.player.PlayerInteractEntityEvent;
+import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
@@ -19,44 +24,93 @@ import org.bukkit.persistence.PersistentDataType;
 import java.util.Random;
 
 /**
- * Handles turning a bounty trophy head in at the bound Citizens NPC. Deliberately listens for the
- * core {@link PlayerInteractEntityEvent} rather than a Citizens-specific event, so this class (and
- * registering it) is always safe even when Citizens isn't installed - all Citizens-specific
- * lookups happen lazily inside {@link CitizensIntegration}.
+ * NPC Охотник:
+ * <ul>
+ *   <li>Нет принятых контрактов — ПКМ и ЛКМ открывают главное GUI.</li>
+ *   <li>Есть принятые — ПКМ открывает GUI; ЛКМ сдаёт трофей (голову цели), если она есть.</li>
+ * </ul>
+ * Слушает обычные Bukkit-события (не Citizens API), чтобы регистрация была безопасна
+ * без Citizens; все lookups идут через {@link CitizensIntegration}.
  */
 public final class CitizensTurnInListener implements Listener {
     private final Settings settings;
     private final Lang lang;
     private final BountyService bountyService;
     private final CitizensIntegration citizens;
+    private final MenuManager menuManager;
     private final Random random = new Random();
 
-    public CitizensTurnInListener(Settings settings, Lang lang, BountyService bountyService, CitizensIntegration citizens) {
+    public CitizensTurnInListener(Settings settings, Lang lang, BountyService bountyService,
+                                  CitizensIntegration citizens, MenuManager menuManager) {
         this.settings = settings;
         this.lang = lang;
         this.bountyService = bountyService;
         this.citizens = citizens;
+        this.menuManager = menuManager;
     }
 
-    @EventHandler
-    public void onInteract(PlayerInteractEntityEvent event) {
-        if (settings.turnInNpcId() < 0 || !citizens.isAvailable()) {
+    /** ПКМ по NPC — всегда открыть главное GUI охоты. */
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    public void onRightClick(PlayerInteractEntityEvent event) {
+        if (event.getHand() != EquipmentSlot.HAND) {
             return;
         }
-        Integer npcId = citizens.npcId(event.getRightClicked());
-        if (npcId == null || npcId != settings.turnInNpcId()) {
+        if (!isBoundNpc(event.getRightClicked())) {
             return;
         }
         event.setCancelled(true);
-
         Player player = event.getPlayer();
+        if (!bountyService.isReady()) {
+            lang.send(player, "not-ready");
+            return;
+        }
+        menuManager.openMain(player);
+    }
+
+    /**
+     * ЛКМ / удар по NPC:
+     * без принятых контрактов — открыть GUI;
+     * с принятыми — попытка сдать трофей (голову цели).
+     */
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    public void onLeftClick(EntityDamageByEntityEvent event) {
+        if (!(event.getDamager() instanceof Player player)) {
+            return;
+        }
+        if (!isBoundNpc(event.getEntity())) {
+            return;
+        }
+        event.setCancelled(true);
+        if (!bountyService.isReady()) {
+            lang.send(player, "not-ready");
+            return;
+        }
+        if (bountyService.acceptedBy(player.getUniqueId()).isEmpty()) {
+            menuManager.openMain(player);
+            return;
+        }
+        tryTurnIn(player);
+    }
+
+    private boolean isBoundNpc(Entity entity) {
+        if (settings.turnInNpcId() < 0 || !citizens.isAvailable()) {
+            return false;
+        }
+        Integer npcId = citizens.npcId(entity);
+        return npcId != null && npcId == settings.turnInNpcId();
+    }
+
+    private void tryTurnIn(Player player) {
         if (tryReject(player)) {
             return;
         }
         Long bountyId = bountyIdOf(player.getInventory().getItemInMainHand());
         if (bountyId == null) {
-            lang.send(player, "turnin-wrong-item");
-            return;
+            bountyId = findTrophyInInventory(player);
+            if (bountyId == null) {
+                lang.send(player, "turnin-wrong-item");
+                return;
+            }
         }
         Bounty bounty = bountyService.get(bountyId);
         if (bounty == null) {
@@ -68,18 +122,52 @@ public final class CitizensTurnInListener implements Listener {
             return;
         }
 
-        consumeOne(player);
+        consumeTrophy(player, bountyId);
         bountyService.complete(bounty, player);
         lang.send(player, "turnin-success", lang.placeholders("target", bounty.targetName()));
         maybeSayAmbient(player);
     }
 
-    /**
-     * "Живая" реакция сдатчика трофеев на реальные вежливость/стиль игры охотника
-     * (LoveBehavior). По умолчанию выключено конфигом (npc-dialogue.reject.enabled) —
-     * сдатчик трофеев тематически не должен отказывать буйным охотникам в оплате за уже
-     * сделанную работу. Возвращает true, если отказано (сдачу трофея обрабатывать не надо).
-     */
+    private Long findTrophyInInventory(Player player) {
+        for (ItemStack item : player.getInventory().getContents()) {
+            Long id = bountyIdOf(item);
+            if (id != null) {
+                return id;
+            }
+        }
+        return null;
+    }
+
+    private void consumeTrophy(Player player, long bountyId) {
+        ItemStack held = player.getInventory().getItemInMainHand();
+        if (bountyIdOf(held) != null && bountyIdOf(held) == bountyId) {
+            consumeOne(player, held, true);
+            return;
+        }
+        for (int i = 0; i < player.getInventory().getSize(); i++) {
+            ItemStack item = player.getInventory().getItem(i);
+            Long id = bountyIdOf(item);
+            if (id != null && id == bountyId) {
+                if (item.getAmount() <= 1) {
+                    player.getInventory().setItem(i, null);
+                } else {
+                    item.setAmount(item.getAmount() - 1);
+                }
+                return;
+            }
+        }
+    }
+
+    private void consumeOne(Player player, ItemStack held, boolean mainHand) {
+        if (held.getAmount() <= 1) {
+            if (mainHand) {
+                player.getInventory().setItemInMainHand(null);
+            }
+        } else {
+            held.setAmount(held.getAmount() - 1);
+        }
+    }
+
     private boolean tryReject(Player player) {
         if (!settings.npcDialogueRejectEnabled()) {
             return false;
@@ -89,7 +177,6 @@ public final class CitizensTurnInListener implements Listener {
                 .orElse(false);
     }
 
-    /** С настроенным шансом говорит фразу под настроение, не блокируя взаимодействие. */
     private void maybeSayAmbient(Player player) {
         if (!settings.npcDialogueAmbientEnabled() || random.nextDouble() >= settings.npcDialogueAmbientChance()) {
             return;
@@ -98,7 +185,6 @@ public final class CitizensTurnInListener implements Listener {
                 .ifPresent(key -> lang.sendRandom(player, key));
     }
 
-    /** Terrible politeness / aggressive playstyle / friendly (politeness>=5 or kind playstyle) — else empty. */
     private java.util.Optional<String> moodKey(Player player, String terribleKey, String aggressiveKey, String friendlyKey) {
         return LoveCore.service(BehaviorLevels.class).flatMap(levels -> {
             int politeness = levels.politenessLevel(player.getUniqueId());
@@ -125,14 +211,5 @@ public final class CitizensTurnInListener implements Listener {
             return null;
         }
         return meta.getPersistentDataContainer().get(LoveHunt.BOUNTY_KEY, PersistentDataType.LONG);
-    }
-
-    private void consumeOne(Player player) {
-        ItemStack held = player.getInventory().getItemInMainHand();
-        if (held.getAmount() <= 1) {
-            player.getInventory().setItemInMainHand(null);
-        } else {
-            held.setAmount(held.getAmount() - 1);
-        }
     }
 }
