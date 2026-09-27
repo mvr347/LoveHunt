@@ -113,17 +113,17 @@ public final class LoveHunt extends JavaPlugin {
         if (compassService != null) {
             compassService.stop();
         }
-        if (bountyService != null) {
-            try {
-                bountyService.save().get(5, TimeUnit.SECONDS);
-            } catch (Exception e) {
-                getLogger().log(Level.WARNING, "Failed to save bounties on disable", e);
-            }
-        }
+        LoveHuntProvider.unregister();
+        Bukkit.getServicesManager().unregisterAll(this);
+
         if (database != null) {
+            try {
+                database.checkpoint().get(3, TimeUnit.SECONDS);
+            } catch (Exception exception) {
+                getLogger().log(Level.WARNING, "Unable to checkpoint SQLite before shutdown", exception);
+            }
             database.close();
         }
-        LoveHuntProvider.unregister();
     }
 
     private void registerCommand(MenuManager menuManager) {
