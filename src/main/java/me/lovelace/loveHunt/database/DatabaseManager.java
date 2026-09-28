@@ -180,6 +180,17 @@ public final class DatabaseManager {
         });
     }
 
+    /** Deletes cooldown rows whose window has definitely expired - see BountyService#pruneCooldowns. */
+    public CompletableFuture<Void> pruneCooldowns(long cutoffMillis) {
+        return runAsync(() -> {
+            try (Connection connection = dataSource.getConnection();
+                 PreparedStatement statement = connection.prepareStatement("DELETE FROM cooldowns WHERE last_time < ?")) {
+                statement.setLong(1, cutoffMillis);
+                statement.executeUpdate();
+            }
+        });
+    }
+
     public CompletableFuture<Map<Long, Set<UUID>>> loadHunters() {
         return supplyAsync(() -> {
             Map<Long, Set<UUID>> hunters = new HashMap<>();

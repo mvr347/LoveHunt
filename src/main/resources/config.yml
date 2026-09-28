@@ -117,6 +117,16 @@ npc-dialogue:
     enabled: true
     chance: 0.35
 
+# Бонус/штраф к награде за сдачу трофея по стилю игры самого ОХОТНИКА (не цели — см.
+# server-bounty.dynamic-pricing.reward-multiplier для этого), из LoveCore.BehaviorLevels
+# (ставит LoveBehavior).
+hunter-reward:
+  playstyle-bonus:
+    enabled: true
+    aggressive-threshold: 0    # ступень стиля игры 0-6 и ниже — "агрессивный"
+    aggressive-bonus-percent: 20
+    kind-penalty-percent: 20   # у ступени 6 ("добрый")
+
 gui:
   main-title: "<dark_gray>LoveHunt"
   all-title: "<dark_gray>Все розыски"

@@ -49,6 +49,7 @@ public final class LoveHunt extends JavaPlugin {
     private BukkitTask autosaveTask;
     private BukkitTask expirationTask;
     private BukkitTask offlineSweepTask;
+    private BukkitTask cooldownPruneTask;
 
     @Override
     public void onEnable() {
@@ -81,7 +82,7 @@ public final class LoveHunt extends JavaPlugin {
         Bukkit.getPluginManager().registerEvents(new ChatInputListener(this, menuManager), this);
         Bukkit.getPluginManager().registerEvents(new BountyDeathListener(bountyService, lang), this);
         Bukkit.getPluginManager().registerEvents(new PendingRewardListener(bountyService), this);
-        Bukkit.getPluginManager().registerEvents(new CitizensTurnInListener(settings, lang, bountyService, citizensIntegration), this);
+        Bukkit.getPluginManager().registerEvents(new CitizensTurnInListener(settings, lang, bountyService, citizensIntegration, menuManager), this);
 
         database.initialize()
                 .thenCompose(ignored -> bountyService.load())
@@ -90,10 +91,11 @@ public final class LoveHunt extends JavaPlugin {
                     startAutosave();
                     startExpirationSweep();
                     startOfflineSweep();
+                    startCooldownPruneSweep();
                 }))
                 .exceptionally(throwable -> {
-                    getLogger().log(Level.SEVERE, "LoveHunt failed to initialize", throwable);
-                    Bukkit.getScheduler().runTask(this, () -> Bukkit.getPluginManager().disablePlugin(this));
+                    getLogger().log(Level.SEVERE, "Failed to initialize LoveHunt", throwable);
+                    Bukkit.getPluginManager().disablePlugin(this);
                     return null;
                 });
     }
@@ -110,12 +112,15 @@ public final class LoveHunt extends JavaPlugin {
         if (offlineSweepTask != null) {
             offlineSweepTask.cancel();
         }
+        if (cooldownPruneTask != null) {
+            cooldownPruneTask.cancel();
+        }
         if (compassService != null) {
             compassService.stop();
         }
         LoveHuntProvider.unregister();
         Bukkit.getServicesManager().unregisterAll(this);
-        
+
         if (database != null) {
             try {
                 database.checkpoint().get(3, TimeUnit.SECONDS);
@@ -128,15 +133,9 @@ public final class LoveHunt extends JavaPlugin {
 
     private void registerCommand(MenuManager menuManager) {
         LoveHuntCommand executor = new LoveHuntCommand(settings, lang, bountyService, menuManager);
-        PluginCommand command = getCommand("lovehunt");
-        if (command == null) {
-            throw new IllegalStateException("Command lovehunt is not defined in plugin.yml");
-        }
-        command.setExecutor(executor);
-        command.setTabCompleter(executor);
-        PluginCommand hunts = getCommand("hunts");
+        PluginCommand hunts = getCommand("lovehunt");
         if (hunts == null) {
-            throw new IllegalStateException("Command hunts is not defined in plugin.yml");
+            throw new IllegalStateException("Command lovehunt is not defined in plugin.yml");
         }
         hunts.setExecutor(executor);
         hunts.setTabCompleter(executor);
@@ -181,6 +180,11 @@ public final class LoveHunt extends JavaPlugin {
     private void startOfflineSweep() {
         long period = 5L * 60L * 20L;
         offlineSweepTask = Bukkit.getScheduler().runTaskTimer(this, bountyService::processOfflineSweep, period, period);
+    }
+
+    private void startCooldownPruneSweep() {
+        long period = 60L * 60L * 20L; // hourly - the cooldown map only needs to shrink, never urgently
+        cooldownPruneTask = Bukkit.getScheduler().runTaskTimer(this, bountyService::pruneCooldowns, period, period);
     }
 
     private void registerPapiExpansion() {

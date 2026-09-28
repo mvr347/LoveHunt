@@ -326,6 +326,7 @@ public final class BountyService {
         }
         HunterRating rating = ratingService.get(hunter.getUniqueId());
         amount = ratingService.applyRewardModifier(amount, rating.rating());
+        amount = applyHunterPlaystyleBonus(amount, hunter.getUniqueId());
         RewardItem finalReward = bounty.reward().withAmount(Math.max(1, amount));
 
         ratingService.recordCompletion(hunter.getUniqueId());
@@ -356,6 +357,30 @@ public final class BountyService {
         } catch (Throwable t) {
             plugin.getLogger().warning("Не удалось отчитаться перед LoveCore о выполненном контракте: " + t.getMessage());
         }
+    }
+
+    /**
+     * Бонус/штраф к награде за сдачу трофея по стилю игры самого охотника (LoveCore.BehaviorLevels,
+     * из LoveBehavior) — агрессивный охотник получает больше, добрый меньше ("из миротворца плохой
+     * охотник"), симметрично тому, как агрессивным отдают больше в бою, а добрым — в торговле.
+     * Без LoveBehavior или у нейтральных охотников — без изменений.
+     */
+    private int applyHunterPlaystyleBonus(int amount, UUID hunterId) {
+        if (!settings.hunterPlaystyleBonusEnabled()) {
+            return amount;
+        }
+        return dev.lovelace.lovecore.api.LoveCore.service(dev.lovelace.lovecore.api.social.BehaviorLevels.class)
+                .map(levels -> {
+                    int playstyle = levels.playstyleLevel(hunterId);
+                    double multiplier = 1.0;
+                    if (playstyle <= settings.hunterPlaystyleAggressiveThreshold()) {
+                        multiplier = 1.0 + settings.hunterPlaystyleAggressiveBonusPercent();
+                    } else if (playstyle >= dev.lovelace.lovecore.api.social.BehaviorLevels.MAX_LEVEL) {
+                        multiplier = 1.0 - settings.hunterPlaystyleKindPenaltyPercent();
+                    }
+                    return Math.max(1, (int) Math.round(amount * multiplier));
+                })
+                .orElse(amount);
     }
 
     private int applyServerEscalation(Bounty bounty, int baseAmount) {
@@ -780,6 +805,23 @@ public final class BountyService {
             return RewardCheck.error("not-enough-items", Map.of("amount", String.valueOf(reward.amount()), "item", reward.displayName()));
         }
         return RewardCheck.success(reward);
+    }
+
+    /**
+     * Drops cooldown entries whose window has definitely expired - a row's {@code last_time}
+     * older than the current cooldown duration can never again make {@link #cooldownLeft}
+     * return non-zero, so it's dead weight. Without this, {@code cooldowns} (loaded in full at
+     * startup, see {@link #load()}) only ever grows for the plugin's whole lifetime, one entry
+     * per creator/target pair that ever triggered the cooldown - including players who never
+     * come back. Safe to run on any schedule; a fresh cooldown just starts a fresh row.
+     */
+    public void pruneCooldowns() {
+        long cutoff = System.currentTimeMillis() - Duration.ofDays(settings.sameTargetCooldownDays()).toMillis();
+        cooldowns.values().removeIf(lastTime -> lastTime < cutoff);
+        database.pruneCooldowns(cutoff).exceptionally(throwable -> {
+            plugin.getLogger().log(Level.WARNING, "Failed to prune expired cooldowns", throwable);
+            return null;
+        });
     }
 
     private long cooldownLeft(UUID creator, UUID target) {

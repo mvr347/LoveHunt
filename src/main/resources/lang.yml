@@ -1,4 +1,4 @@
-prefix: "<dark_gray>[<gold>LoveHunt</gold>]</dark_gray> "
+prefix: "<gradient:#FF5555:#CC0000><bold>Охота</bold></gradient> <dark_gray>»</dark_gray> "
 no-permission: "<red>Нет прав."
 only-player: "<red>Команда доступна только игроку."
 not-ready: "<yellow>LoveHunt ещё загружает данные. Попробуйте через несколько секунд."
@@ -33,8 +33,8 @@ clan-filter-unavailable: "<red>Фильтр доступен только уча
 cancel-order-success: "<green>Заказ отменён, награда возвращена."
 cancel-order-failed: "<red>Не удалось отменить заказ."
 bounty-frozen: "<red>Цель давно не заходила на сервер, розыск временно заморожен."
-target-fled-hunter-notify: "<gold>[Охота]</gold> <gray>Цель <yellow>{target}</yellow> покинула королевство. Контракт временно аннулирован.</gray>"
-herald-hunt-broadcast: "<gold><bold>[Голос Королевства]</bold></gold> <red>Внимание! Разыскиваемый преступник <yellow>{target}</yellow> замечен в землях королевства! На него объявлена охота! Награда: <gold>{amount}× {item}</gold>!"
+target-fled-hunter-notify: "<gray>Цель <yellow>{target}</yellow> покинула королевство. Контракт временно аннулирован.</gray>"
+herald-hunt-broadcast: "<red>Внимание! Разыскиваемый преступник <yellow>{target}</yellow> замечен в землях королевства! На него объявлена охота! Награда: <gold>{amount}× {item}</gold>!"
 herald-hunt-title: "<red><bold>ОБЪЯВЛЕНА ОХОТА!</bold></red>"
 herald-hunt-subtitle: "<yellow>Преступник <white>{target}</white> замечен на сервере!</yellow>"
 create-blocked: "<red>Вам запрещено создавать розыски."
@@ -90,8 +90,6 @@ top-entry: "<gray>{rank}. <yellow>{player}</yellow> — рейтинг <gold>{ra
 # ========================================== #
 #      КОМАНДЫ (HELP)                        #
 # ========================================== #
-# Единый формат для всех help-выводов плагина: разделитель, список
-# "<aqua>/команда аргументы</aqua> <gray>- описание</gray>", разделитель.
 help-header: "<dark_gray>========== <gold>LoveHunt Помощь</gold> ==========</dark_gray>"
 help-main: "<aqua>/lovehunt</aqua> <gray>- Открыть главное меню розыска (алиасы: /hunt, /охота)</gray>"
 help-hunts: "<aqua>/hunts</aqua> <gray>- Открыть список всех активных розысков</gray>"
