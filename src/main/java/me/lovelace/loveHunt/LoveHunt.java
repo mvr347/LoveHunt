@@ -49,6 +49,7 @@ public final class LoveHunt extends JavaPlugin {
     private BukkitTask autosaveTask;
     private BukkitTask expirationTask;
     private BukkitTask offlineSweepTask;
+    private BukkitTask cooldownPruneTask;
 
     @Override
     public void onEnable() {
@@ -90,6 +91,7 @@ public final class LoveHunt extends JavaPlugin {
                     startAutosave();
                     startExpirationSweep();
                     startOfflineSweep();
+                    startCooldownPruneSweep();
                 }))
                 .exceptionally(throwable -> {
                     getLogger().log(Level.SEVERE, "Failed to initialize LoveHunt", throwable);
@@ -109,6 +111,9 @@ public final class LoveHunt extends JavaPlugin {
         }
         if (offlineSweepTask != null) {
             offlineSweepTask.cancel();
+        }
+        if (cooldownPruneTask != null) {
+            cooldownPruneTask.cancel();
         }
         if (compassService != null) {
             compassService.stop();
@@ -175,6 +180,11 @@ public final class LoveHunt extends JavaPlugin {
     private void startOfflineSweep() {
         long period = 5L * 60L * 20L;
         offlineSweepTask = Bukkit.getScheduler().runTaskTimer(this, bountyService::processOfflineSweep, period, period);
+    }
+
+    private void startCooldownPruneSweep() {
+        long period = 60L * 60L * 20L; // hourly - the cooldown map only needs to shrink, never urgently
+        cooldownPruneTask = Bukkit.getScheduler().runTaskTimer(this, bountyService::pruneCooldowns, period, period);
     }
 
     private void registerPapiExpansion() {

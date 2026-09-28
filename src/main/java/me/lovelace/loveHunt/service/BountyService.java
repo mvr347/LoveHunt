@@ -807,6 +807,23 @@ public final class BountyService {
         return RewardCheck.success(reward);
     }
 
+    /**
+     * Drops cooldown entries whose window has definitely expired - a row's {@code last_time}
+     * older than the current cooldown duration can never again make {@link #cooldownLeft}
+     * return non-zero, so it's dead weight. Without this, {@code cooldowns} (loaded in full at
+     * startup, see {@link #load()}) only ever grows for the plugin's whole lifetime, one entry
+     * per creator/target pair that ever triggered the cooldown - including players who never
+     * come back. Safe to run on any schedule; a fresh cooldown just starts a fresh row.
+     */
+    public void pruneCooldowns() {
+        long cutoff = System.currentTimeMillis() - Duration.ofDays(settings.sameTargetCooldownDays()).toMillis();
+        cooldowns.values().removeIf(lastTime -> lastTime < cutoff);
+        database.pruneCooldowns(cutoff).exceptionally(throwable -> {
+            plugin.getLogger().log(Level.WARNING, "Failed to prune expired cooldowns", throwable);
+            return null;
+        });
+    }
+
     private long cooldownLeft(UUID creator, UUID target) {
         Long last = cooldowns.get(cooldownKey(creator, target));
         if (last == null) {

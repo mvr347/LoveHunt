@@ -29,7 +29,6 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.plugin.java.JavaPlugin;
 
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -368,26 +367,35 @@ public final class MenuManager {
     private void handleAcceptConfirm(Player player, LoveHuntHolder holder, int slot) {
         if (slot == 4) { reopen(player, holder); return; }
         if (slot != 0) return;
-        BountyService.AcceptResult result = bountyService.accept(player, holder.bountyId());
-        if (!result.success()) {
-            lang.send(player, result.messageKey(), result.placeholders());
-            reopen(player, holder);
-            return;
-        }
-        lang.send(player, "accept-success");
-        player.closeInventory();
+        Bounty bounty = bountyService.get(holder.bountyId());
+        bountyService.accept(player, bounty).thenAccept(success -> Bukkit.getScheduler().runTask(plugin, () -> {
+            if (success) {
+                lang.send(player, "accept-success");
+                player.closeInventory();
+            } else {
+                lang.send(player, "accept-failed");
+                reopen(player, holder);
+            }
+        })).exceptionally(throwable -> {
+            Bukkit.getScheduler().runTask(plugin, () -> {
+                lang.send(player, "accept-failed");
+                reopen(player, holder);
+            });
+            return null;
+        });
     }
 
     private void handleCancelConfirm(Player player, LoveHuntHolder holder, int slot) {
         if (slot == 4) { reopen(player, holder); return; }
         if (slot != 0) return;
-        BountyService.CancelResult result = bountyService.cancel(player, holder.bountyId());
-        if (!result.success()) {
-            lang.send(player, result.messageKey(), result.placeholders());
+        Bounty bounty = bountyService.get(holder.bountyId());
+        boolean success = bountyService.cancelByCreator(player, bounty);
+        if (!success) {
+            lang.send(player, "cancel-order-failed");
             reopen(player, holder);
             return;
         }
-        lang.send(player, "cancel-success");
+        lang.send(player, "cancel-order-success");
         reopen(player, holder);
     }
 
@@ -448,14 +456,14 @@ public final class MenuManager {
     }
 
     private List<Bounty> filterMine(Player player, SortMode sortMode, String search) {
-        List<Bounty> list = new ArrayList<>(bountyService.activeByCreator(player.getUniqueId()));
+        List<Bounty> list = new ArrayList<>(bountyService.byCreator(player.getUniqueId()));
         applySearch(list, search);
         sort(list, sortMode);
         return list;
     }
 
     private List<Bounty> filterAll(Player player, SortMode sortMode, TypeFilter typeFilter, boolean onlyMyClan, boolean onlineOnly, String search) {
-        List<Bounty> list = new ArrayList<>(bountyService.activeAll());
+        List<Bounty> list = new ArrayList<>(bountyService.allActive());
         if (typeFilter != TypeFilter.ALL) {
             list.removeIf(b -> switch (typeFilter) {
                 case PLAYER -> b.type() != BountyType.PLAYER;
@@ -466,8 +474,8 @@ public final class MenuManager {
         }
         if (onlyMyClan) {
             LoveHuntClans clans = bountyService.clans();
-            String clan = clans.clanId(player.getUniqueId());
-            if (clan != null) list.removeIf(b -> b.type() != BountyType.CLAN || !clan.equals(b.clanId()));
+            String clan = clans.getClanTag(player.getUniqueId());
+            if (clan != null) list.removeIf(b -> b.type() != BountyType.CLAN || !clan.equalsIgnoreCase(b.clanTag()));
             else list.clear();
         }
         if (onlineOnly) list.removeIf(b -> {
@@ -490,9 +498,11 @@ public final class MenuManager {
 
     private void sort(List<Bounty> list, SortMode sortMode) {
         Comparator<Bounty> cmp = switch (sortMode) {
-            case DATE -> Comparator.comparingLong(Bounty::createdAt).reversed();
+            case NAME -> Comparator.comparing(Bounty::targetName, String.CASE_INSENSITIVE_ORDER);
             case REWARD -> Comparator.comparingLong((Bounty b) -> b.reward() != null ? b.reward().amount() : 0L).reversed();
-            case EXPIRY -> Comparator.comparingLong(Bounty::expiresAt);
+            case DATE -> Comparator.comparingLong(Bounty::createdAt).reversed();
+            case EXPIRING -> Comparator.comparingLong((Bounty b) -> b.expiresAt() != null ? b.expiresAt() : Long.MAX_VALUE);
+            case POPULAR -> Comparator.comparingInt((Bounty b) -> bountyService.hunterCount(b.id())).reversed();
         };
         list.sort(cmp);
     }
@@ -515,7 +525,7 @@ public final class MenuManager {
     }
 
     private boolean clanFilterAvailable(Player player) {
-        return bountyService.clans().clanId(player.getUniqueId()) != null;
+        return bountyService.clans().getClanTag(player.getUniqueId()) != null;
     }
 
     private void fill(Inventory inventory) {
@@ -662,7 +672,7 @@ public final class MenuManager {
             if (bounty.reward() != null) {
                 lore.add(lang.legacy("§7Награда: §a" + bounty.reward().amount() + " §7" + bounty.reward().displayName()));
             }
-            lore.add(lang.legacy("§7Истекает: §e" + TimeUtil.formatRemaining(Duration.ofMillis(Math.max(0, bounty.expiresAt() - System.currentTimeMillis())))));
+            lore.add(lang.legacy("§7Истекает: §e" + TimeUtil.compact(Math.max(0, bounty.expiresAt() - System.currentTimeMillis()))));
             meta.lore(lore);
             meta.addItemFlags(ItemFlag.values());
             head.setItemMeta(meta);
@@ -688,7 +698,7 @@ public final class MenuManager {
 
     private ItemStack button(String path, Material fallback, String headKey, Component name, List<Component> lore) {
         ItemStack item;
-        String texture = heads != null ? heads.get(headKey) : null;
+        String texture = heads != null ? heads.base64(headKey) : null;
         if (texture != null && !texture.isBlank()) {
             item = HeadUtil.base64Head(texture);
         } else {
