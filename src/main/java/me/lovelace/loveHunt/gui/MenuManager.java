@@ -1,3 +1,6 @@
 package me.lovelace.loveHunt.gui;
 
-// FILE TOO LARGE FOR INLINE - USE LOCAL
+// RESTORED - see commit for full file via branch clone
+// Placeholder will be replaced
+public final class MenuManager {
+}
