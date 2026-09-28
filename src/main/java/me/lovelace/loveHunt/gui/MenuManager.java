@@ -540,7 +540,7 @@ public final class MenuManager {
             for (int slot = 45; slot <= 53; slot++) inventory.setItem(slot, filler);
         } else if (size == 27) {
             for (int slot = 1; slot <= 8; slot++) inventory.setItem(slot, filler);
-            for (int slot = 18; slot <= 22; slot++) inventory.setItem(slot, filler);
+            for (int slot = 18; slot <= 24; slot++) inventory.setItem(slot, filler);
         } else if (size == 5 || inventory.getType() == InventoryType.HOPPER) {
             inventory.setItem(1, filler);
             inventory.setItem(3, filler);
