@@ -227,6 +227,25 @@ public final class LoveHuntAdminCommand implements CommandExecutor, TabCompleter
         lang.send(player, "npc-not-bound");
     }
 
+    /** {@code /lovehuntadmin gui open <игрок>} — открывает главное меню розыска онлайн-игроку (для NPC-скриптов и консоли). */
+    private void handleGui(CommandSender sender, String[] args) {
+        if (args.length < 3 || !args[1].equalsIgnoreCase("open")) {
+            lang.send(sender, "admin-gui-usage");
+            return;
+        }
+        Player target = Bukkit.getPlayerExact(args[2]);
+        if (target == null) {
+            lang.send(sender, "admin-gui-player-offline");
+            return;
+        }
+        if (!bountyService.isReady()) {
+            lang.send(sender, "not-ready");
+            return;
+        }
+        menuManager.openMain(target);
+        lang.send(sender, "admin-gui-opened", lang.placeholders("player", target.getName()));
+    }
+
     private void sendHelp(CommandSender sender) {
         lang.send(sender, "admin-help-header");
         lang.send(sender, "admin-help-reload");
@@ -258,8 +277,10 @@ public final class LoveHuntAdminCommand implements CommandExecutor, TabCompleter
         if (args.length == 2 && args[0].equalsIgnoreCase("gui")) {
             return GUI_ACTIONS;
         }
-        if (args.length == 3 && args[0].equalsIgnoreCase("gui") && args[1].equalsIgnoreCase("open")) {
-            return null; // default completion: online player names
+        if (args.length == 3 && args[0].equalsIgnoreCase("gui")) {
+            String prefix = args[2].toLowerCase(Locale.ROOT);
+            return Bukkit.getOnlinePlayers().stream().map(Player::getName)
+                    .filter(name -> name.toLowerCase(Locale.ROOT).startsWith(prefix)).toList();
         }
         if (args.length == 3 && (args[0].equalsIgnoreCase("block") || args[0].equalsIgnoreCase("unblock"))) {
             return BLOCK_ACTIONS;
