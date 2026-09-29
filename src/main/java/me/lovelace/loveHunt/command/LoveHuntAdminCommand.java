@@ -2,6 +2,7 @@ package me.lovelace.loveHunt.command;
 
 import me.lovelace.loveHunt.config.Lang;
 import me.lovelace.loveHunt.config.Settings;
+import me.lovelace.loveHunt.gui.MenuManager;
 import me.lovelace.loveHunt.model.BountyType;
 import me.lovelace.loveHunt.model.RewardItem;
 import me.lovelace.loveHunt.service.BountyService;
@@ -35,7 +36,8 @@ import java.util.UUID;
  */
 public final class LoveHuntAdminCommand implements CommandExecutor, TabCompleter {
 
-    private static final List<String> SUBCOMMANDS = List.of("reload", "block", "unblock", "create", "npc", "help");
+    private static final List<String> SUBCOMMANDS = List.of("reload", "block", "unblock", "create", "npc", "gui", "help");
+    private static final List<String> GUI_ACTIONS = List.of("open");
     private static final List<String> RELOAD_TYPES = List.of("all", "config", "message");
     private static final List<String> BLOCK_ACTIONS = List.of("create", "accept");
     private static final List<String> CREATE_TYPES = List.of("player", "clan", "server");
@@ -45,12 +47,15 @@ public final class LoveHuntAdminCommand implements CommandExecutor, TabCompleter
     private final Lang lang;
     private final BountyService bountyService;
     private final CitizensIntegration citizens;
+    private final MenuManager menuManager;
 
-    public LoveHuntAdminCommand(Settings settings, Lang lang, BountyService bountyService, CitizensIntegration citizens) {
+    public LoveHuntAdminCommand(Settings settings, Lang lang, BountyService bountyService,
+                                CitizensIntegration citizens, MenuManager menuManager) {
         this.settings = settings;
         this.lang = lang;
         this.bountyService = bountyService;
         this.citizens = citizens;
+        this.menuManager = menuManager;
     }
 
     @Override
@@ -71,6 +76,7 @@ public final class LoveHuntAdminCommand implements CommandExecutor, TabCompleter
             case "unblock" -> handleBlock(sender, args, false);
             case "create" -> handleCreate(sender, args);
             case "npc" -> handleNpc(sender, args);
+            case "gui" -> handleGui(sender, args);
             default -> sendHelp(sender);
         }
         return true;
@@ -202,6 +208,25 @@ public final class LoveHuntAdminCommand implements CommandExecutor, TabCompleter
         lang.send(player, "npc-not-bound");
     }
 
+    /** {@code /lovehuntadmin gui open <игрок>} — открывает главное меню розыска онлайн-игроку (для NPC-скриптов и консоли). */
+    private void handleGui(CommandSender sender, String[] args) {
+        if (args.length < 3 || !args[1].equalsIgnoreCase("open")) {
+            lang.send(sender, "admin-gui-usage");
+            return;
+        }
+        Player target = Bukkit.getPlayerExact(args[2]);
+        if (target == null) {
+            lang.send(sender, "admin-gui-player-offline");
+            return;
+        }
+        if (!bountyService.isReady()) {
+            lang.send(sender, "not-ready");
+            return;
+        }
+        menuManager.openMain(target);
+        lang.send(sender, "admin-gui-opened", lang.placeholders("player", target.getName()));
+    }
+
     private void sendHelp(CommandSender sender) {
         lang.send(sender, "admin-help-header");
         lang.send(sender, "admin-help-reload");
@@ -209,6 +234,7 @@ public final class LoveHuntAdminCommand implements CommandExecutor, TabCompleter
         lang.send(sender, "admin-help-unblock");
         lang.send(sender, "admin-help-create");
         lang.send(sender, "admin-help-npc");
+        lang.send(sender, "admin-help-gui");
         lang.send(sender, "admin-help-footer");
     }
 
@@ -228,6 +254,14 @@ public final class LoveHuntAdminCommand implements CommandExecutor, TabCompleter
         }
         if (args.length == 2 && args[0].equalsIgnoreCase("npc")) {
             return NPC_ACTIONS;
+        }
+        if (args.length == 2 && args[0].equalsIgnoreCase("gui")) {
+            return GUI_ACTIONS;
+        }
+        if (args.length == 3 && args[0].equalsIgnoreCase("gui")) {
+            String prefix = args[2].toLowerCase(Locale.ROOT);
+            return Bukkit.getOnlinePlayers().stream().map(Player::getName)
+                    .filter(name -> name.toLowerCase(Locale.ROOT).startsWith(prefix)).toList();
         }
         if (args.length == 3 && (args[0].equalsIgnoreCase("block") || args[0].equalsIgnoreCase("unblock"))) {
             return BLOCK_ACTIONS;

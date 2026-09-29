@@ -56,6 +56,9 @@ admin-unknown-player: "<red>Игрок не найден в истории се�
 admin-create-usage: "<red>Использование: /lovehuntadmin create <player|clan|server> <цель> <количество> [материал]"
 admin-create-success: "<green>Розыск создан администратором: {target}, награда {amount}× {item}."
 admin-create-failed: "<red>Не удалось создать розыск."
+admin-gui-usage: "<red>Использование: /lovehuntadmin gui open <игрок>"
+admin-gui-player-offline: "<red>Игрок не в сети."
+admin-gui-opened: "<green>Главное меню розыска открыто игроку {player}."
 npc-not-available: "<red>Плагин Citizens не найден на сервере."
 npc-select-none: "<red>Посмотрите на нужного NPC (в радиусе 6 блоков) и повторите команду."
 npc-bind-success: "<green>NPC «{name}» назначен пунктом сдачи трофеев."
@@ -109,7 +112,8 @@ admin-help-block: "<aqua>/lovehuntadmin block <игрок> <create|accept></aqua
 admin-help-unblock: "<aqua>/lovehuntadmin unblock <игрок> <create|accept></aqua> <gray>- Снять запрет с игрока</gray>"
 admin-help-create: "<aqua>/lovehuntadmin create <player|clan|server> <игрок> <кол-во> [материал]</aqua> <gray>- Создать розыск от имени администратора</gray>"
 admin-help-npc: "<aqua>/lovehuntadmin npc <bind|unbind></aqua> <gray>- Привязать/отвязать NPC пункта сдачи трофеев</gray>"
-admin-help-footer: "<dark_gray>=========================================</dark_gray>"
+admin-help-gui: "<aqua>/lovehuntadmin gui open <игрок></aqua> <gray>- Открыть главное меню розыска игроку</gray>"
+admin-help-footer:"<dark_gray>=========================================</dark_gray>"
 
 gui:
   main-title: "<dark_gray>Главное меню"
