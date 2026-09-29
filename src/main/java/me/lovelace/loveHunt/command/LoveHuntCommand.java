@@ -88,8 +88,11 @@ public final class LoveHuntCommand implements CommandExecutor, TabCompleter {
             menuManager.beginCreate(player);
         } else if (label.equalsIgnoreCase("hunts")) {
             menuManager.openAll(player, 0, SortMode.DATE, TypeFilter.ALL, false, false, null);
-        } else {
+        } else if (player.hasPermission("lovehunt.admin")) {
             menuManager.openMain(player);
+        } else {
+            // The main menu is opened by the Hunter NPC or by /lovehuntadmin gui open <player>.
+            lang.send(player, "main-menu-npc-only");
         }
         return true;
     }
