@@ -53,6 +53,12 @@ public final class MenuManager {
     private static final int MANAGE_BACK = 52;
     private static final int MANAGE_CLOSE = 53;
 
+    private static final String FILTER_HEAD = "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvOGViODFlZjg5MDIzNzk2NTBiYTc5ZjQ1NzIzZDZiOWM4ODgzODhhMDBmYzRlMTkyZjM0NTRmZTE5Mzg4MmVlMSJ9fX0=";
+
+    // Header control buttons (sort, type filter, clan/online): "mine" has 2, "all" has 3.
+    private static final int[] MINE_CONTROLS = controlSlots(2);
+    private static final int[] ALL_CONTROLS = controlSlots(3);
+
     private static final int[] CONTENT_SLOTS = {
         19, 20, 21, 22, 23, 24, 25,
         28, 29, 30, 31, 32, 33, 34,
@@ -88,18 +94,18 @@ public final class MenuManager {
         player.openInventory(inventory);
     }
 
-    public void openMine(Player player, int page, SortMode sortMode, String search) {
-        List<Bounty> bounties = filterMine(player, sortMode, search);
+    public void openMine(Player player, int page, SortMode sortMode, TypeFilter typeFilter, String search) {
+        List<Bounty> bounties = filterMine(player, sortMode, typeFilter, search);
         PageSlice slice = paginate(bounties, page);
         if (slice == null) {
-            openMine(player, page - 1, sortMode, search);
+            openMine(player, page - 1, sortMode, typeFilter, search);
             return;
         }
-        LoveHuntHolder holder = new LoveHuntHolder(MenuType.MINE, MenuType.MINE, slice.page(), sortMode, TypeFilter.ALL, false, false, search, null, 0L);
+        LoveHuntHolder holder = new LoveHuntHolder(MenuType.MINE, MenuType.MINE, slice.page(), sortMode, typeFilter, false, false, search, null, 0L);
         Inventory inventory = Bukkit.createInventory(holder, MANAGE_SIZE, lang.component("gui.mine-title"));
         holder.inventory(inventory);
         fill(inventory);
-        addMineHeader(inventory, sortMode, player);
+        addMineHeader(inventory, sortMode, typeFilter, player);
         placeItems(inventory, holder, bounties, slice, player);
         addFooter(inventory, slice);
         if (bounties.isEmpty()) {
@@ -242,7 +248,7 @@ public final class MenuManager {
             return;
         }
         if (input.mode() == InputMode.SEARCH) {
-            if (input.returnType() == MenuType.MINE) openMine(player, 0, input.sortMode(), message.trim());
+            if (input.returnType() == MenuType.MINE) openMine(player, 0, input.sortMode(), input.typeFilter(), message.trim());
             else openAll(player, 0, input.sortMode(), input.typeFilter(), input.onlyMyClan(), input.onlineOnly(), message.trim());
         }
     }
@@ -260,7 +266,7 @@ public final class MenuManager {
     }
 
     private void handleMain(Player player, int slot) {
-        if (slot == MINE_MAIN_BUTTON) openMine(player, 0, SortMode.DATE, null);
+        if (slot == MINE_MAIN_BUTTON) openMine(player, 0, SortMode.DATE, TypeFilter.ALL, null);
         else if (slot == ALL_MAIN_BUTTON) openAll(player, 0, SortMode.DATE, TypeFilter.ALL, false, false, null);
         else if (slot == 25) beginCreate(player);
         else if (slot == MAIN_SIZE - 1) player.closeInventory();
@@ -271,9 +277,10 @@ public final class MenuManager {
             openBountyAction(player, holder, holder.bountySlots().get(slot));
             return;
         }
-        if (slot == 2) openMine(player, 0, nextSort(holder.sortMode()), holder.search());
-        else if (slot == 36 && holder.page() > 0) openMine(player, holder.page() - 1, holder.sortMode(), holder.search());
-        else if (slot == 44) openMine(player, holder.page() + 1, holder.sortMode(), holder.search());
+        if (slot == MINE_CONTROLS[0]) openMine(player, 0, nextSort(holder.sortMode()), holder.typeFilter(), holder.search());
+        else if (slot == MINE_CONTROLS[1]) openMine(player, 0, holder.sortMode(), nextType(holder.typeFilter()), holder.search());
+        else if (slot == 36 && holder.page() > 0) openMine(player, holder.page() - 1, holder.sortMode(), holder.typeFilter(), holder.search());
+        else if (slot == 44) openMine(player, holder.page() + 1, holder.sortMode(), holder.typeFilter(), holder.search());
         else if (slot == 51) beginCreate(player);
         else if (slot == 52) openMain(player);
         else if (slot == 53) player.closeInventory();
@@ -284,9 +291,9 @@ public final class MenuManager {
             openBountyAction(player, holder, holder.bountySlots().get(slot));
             return;
         }
-        if (slot == 2) openAll(player, 0, nextSort(holder.sortMode()), holder.typeFilter(), holder.onlyMyClan(), holder.onlineOnly(), holder.search());
-        else if (slot == 3) openAll(player, 0, holder.sortMode(), nextType(holder.typeFilter()), holder.onlyMyClan(), holder.onlineOnly(), holder.search());
-        else if (slot == 4) {
+        if (slot == ALL_CONTROLS[0]) openAll(player, 0, nextSort(holder.sortMode()), holder.typeFilter(), holder.onlyMyClan(), holder.onlineOnly(), holder.search());
+        else if (slot == ALL_CONTROLS[1]) openAll(player, 0, holder.sortMode(), nextType(holder.typeFilter()), holder.onlyMyClan(), holder.onlineOnly(), holder.search());
+        else if (slot == ALL_CONTROLS[2]) {
             if (!holder.onlyMyClan() && !clanFilterAvailable(player)) {
                 lang.send(player, "clan-filter-unavailable");
                 return;
@@ -401,23 +408,37 @@ public final class MenuManager {
 
     private void reopen(Player player, LoveHuntHolder holder) {
         MenuType t = holder.returnType();
-        if (t == MenuType.MINE) openMine(player, holder.page(), holder.sortMode(), holder.search());
+        if (t == MenuType.MINE) openMine(player, holder.page(), holder.sortMode(), holder.typeFilter(), holder.search());
         else if (t == MenuType.ALL) openAll(player, holder.page(), holder.sortMode(), holder.typeFilter(), holder.onlyMyClan(), holder.onlineOnly(), holder.search());
         else openMain(player);
     }
 
-    private void addMineHeader(Inventory inventory, SortMode sortMode, Player player) {
+    // gui_gen v2.1, RULE 4: control buttons live in header slots 2-7 and are spread evenly across that range by
+    // their count (1 -> 4, 2 -> 3/5, 3 -> 2/4/6, 4 -> 2/3/5/6, 5 -> 2/3/4/6/7, 6 -> 2..7). The slots a menu leaves
+    // over stay glass (fill()), and slot 8 is glass too: the close button lives in the footer only.
+    private static int[] controlSlots(int count) {
+        return switch (count) {
+            case 1 -> new int[]{4};
+            case 2 -> new int[]{3, 5};
+            case 3 -> new int[]{2, 4, 6};
+            case 4 -> new int[]{2, 3, 5, 6};
+            case 5 -> new int[]{2, 3, 4, 6, 7};
+            case 6 -> new int[]{2, 3, 4, 5, 6, 7};
+            default -> throw new IllegalArgumentException("Header fits 1-6 control buttons, got " + count);
+        };
+    }
+
+    private void addMineHeader(Inventory inventory, SortMode sortMode, TypeFilter typeFilter, Player player) {
         inventory.setItem(0, statsButton(player));
-        inventory.setItem(2, sortButton(sortMode));
-        inventory.setItem(8, closeButton());
+        inventory.setItem(MINE_CONTROLS[0], sortButton(sortMode));
+        inventory.setItem(MINE_CONTROLS[1], typeFilterButton(typeFilter));
     }
 
     private void addAllHeader(Inventory inventory, SortMode sortMode, TypeFilter typeFilter, boolean onlyMyClan, boolean onlineOnly, Player player) {
         inventory.setItem(0, statsButton(player));
-        inventory.setItem(2, sortButton(sortMode));
-        inventory.setItem(3, typeFilterButton(typeFilter));
-        inventory.setItem(4, clanOnlineButton(onlyMyClan, onlineOnly));
-        inventory.setItem(8, closeButton());
+        inventory.setItem(ALL_CONTROLS[0], sortButton(sortMode));
+        inventory.setItem(ALL_CONTROLS[1], typeFilterButton(typeFilter));
+        inventory.setItem(ALL_CONTROLS[2], clanOnlineButton(onlyMyClan, onlineOnly));
     }
 
     private void addFooter(Inventory inventory, PageSlice slice) {
@@ -455,8 +476,16 @@ public final class MenuManager {
         return new PageSlice(safePage, start, end, MANAGE_SIZE, totalPages);
     }
 
-    private List<Bounty> filterMine(Player player, SortMode sortMode, String search) {
+    private List<Bounty> filterMine(Player player, SortMode sortMode, TypeFilter typeFilter, String search) {
         List<Bounty> list = new ArrayList<>(bountyService.byCreator(player.getUniqueId()));
+        if (typeFilter != TypeFilter.ALL) {
+            list.removeIf(b -> switch (typeFilter) {
+                case PLAYER -> b.type() != BountyType.PLAYER;
+                case CLAN -> b.type() != BountyType.CLAN;
+                case SERVER -> b.type() != BountyType.SERVER;
+                default -> false;
+            });
+        }
         applySearch(list, search);
         sort(list, sortMode);
         return list;
@@ -534,8 +563,8 @@ public final class MenuManager {
         ItemStack filler = named(fillerMat, Component.text(" "));
         int size = inventory.getSize();
         if (size == 54) {
-            inventory.setItem(1, filler);
-            for (int slot = 5; slot <= 8; slot++) inventory.setItem(slot, filler);
+            // Header: every slot except 0 starts as glass; control buttons then replace the glass they sit on.
+            for (int slot = 1; slot <= 8; slot++) inventory.setItem(slot, filler);
             for (int slot = 9; slot <= 17; slot++) inventory.setItem(slot, filler);
             for (int slot = 45; slot <= 53; slot++) inventory.setItem(slot, filler);
         } else if (size == 27) {
@@ -595,7 +624,9 @@ public final class MenuManager {
     }
 
     private ItemStack typeFilterButton(TypeFilter typeFilter) {
-        return button("gui.items.filter", Material.NAME_TAG, "filter-base64",
+        // Default skin is built in, so servers whose already-generated heads.yml predates this key still get the head.
+        String texture = heads != null ? heads.base64("type-filter-base64", FILTER_HEAD) : FILTER_HEAD;
+        return buttonWithTexture("gui.items.type-filter", Material.NAME_TAG, texture,
                 lang.component("gui.all.type-" + typeFilter.name().toLowerCase(Locale.ROOT)),
                 lang.components("gui.all.type-hint", Map.of(), false));
     }
@@ -713,8 +744,12 @@ public final class MenuManager {
     }
 
     private ItemStack button(String path, Material fallback, String headKey, Component name, List<Component> lore) {
+        return buttonWithTexture(path, fallback, heads != null ? heads.base64(headKey) : null, name, lore);
+    }
+
+    /** {@code texture} is the resolved Base64 skin (may be blank -> plain material from config). */
+    private ItemStack buttonWithTexture(String path, Material fallback, String texture, Component name, List<Component> lore) {
         ItemStack item;
-        String texture = heads != null ? heads.base64(headKey) : null;
         if (texture != null && !texture.isBlank()) {
             item = HeadUtil.base64Head(texture);
         } else {
