@@ -585,21 +585,37 @@ public final class MenuManager {
         return button("gui.items.close", Material.BARRIER, "close-base64", lang.component("gui.close"), lang.components("gui.close-lore", Map.of(), false));
     }
 
+    // Keys below are the ones the shipped lang.yml actually defines (gui.all.*, gui.manage-extend*). The code used
+    // to look up gui.sort.* / gui.filter.* / gui.clan-filter.* / gui.extend*, which lang.yml never had, so the
+    // buttons showed the raw key as their name.
     private ItemStack sortButton(SortMode sortMode) {
-        return button("gui.items.sort", Material.HOPPER, "sort-base64", lang.component("gui.sort." + sortMode.name().toLowerCase(Locale.ROOT)), lang.components("gui.sort-lore", Map.of(), false));
+        return button("gui.items.sort", Material.HOPPER, "sort-base64",
+                lang.component("gui.all.sort-" + sortMode.name().toLowerCase(Locale.ROOT)),
+                lang.components("gui.all.sort-hint", Map.of(), false));
     }
 
     private ItemStack typeFilterButton(TypeFilter typeFilter) {
-        return button("gui.items.filter", Material.NAME_TAG, "filter-base64", lang.component("gui.filter." + typeFilter.name().toLowerCase(Locale.ROOT)), lang.components("gui.filter-lore", Map.of(), false));
+        return button("gui.items.filter", Material.NAME_TAG, "filter-base64",
+                lang.component("gui.all.type-" + typeFilter.name().toLowerCase(Locale.ROOT)),
+                lang.components("gui.all.type-hint", Map.of(), false));
     }
 
     private ItemStack clanOnlineButton(boolean onlyMyClan, boolean onlineOnly) {
-        String key = onlyMyClan ? (onlineOnly ? "clan-online" : "clan") : (onlineOnly ? "online" : "all");
-        return button("gui.items.clan-filter", Material.SHIELD, "clan-filter-base64", lang.component("gui.clan-filter." + key), lang.components("gui.clan-filter-lore", Map.of(), false));
+        String key = onlyMyClan ? (onlineOnly ? "both" : "clan") : (onlineOnly ? "online" : "off");
+        return button("gui.items.clan-filter", Material.SHIELD, "clan-filter-base64",
+                lang.component("gui.all.clan-online-" + key),
+                lang.components("gui.all.clan-online-hint", Map.of(), false));
     }
 
     private ItemStack extendButton(Bounty bounty) {
-        return button("gui.items.extend", Material.CLOCK, "extend-base64", lang.component("gui.extend"), lang.components("gui.extend-lore", Map.of(), false));
+        boolean clan = bounty.type() == BountyType.CLAN;
+        int costPercent = clan ? settings.clanExtendCostPercent() : settings.playerExtendCostPercent();
+        // Same formula as BountyService#extend, so the lore shows exactly what will be charged.
+        int cost = Math.max(1, (int) Math.ceil(bounty.reward().amount() * (costPercent / 100.0)));
+        Map<String, String> placeholders = lang.placeholders("amount", String.valueOf(cost), "item", bounty.reward().displayName());
+        return button("gui.items.extend", Material.CLOCK, "extend-base64",
+                lang.component("gui.manage-extend"),
+                lang.components("gui.manage-extend-hint", placeholders, false));
     }
 
     private ItemStack emptyNoticeHead(Component name, List<Component> lore) {

@@ -31,6 +31,17 @@ public final class Lang {
             plugin.saveResource("lang.yml", false);
         }
         lang = YamlConfiguration.loadConfiguration(file);
+        // saveResource only writes lang.yml when it does not exist yet, so a server that updated the plugin keeps
+        // an old file without the new keys and players saw the raw key ("gui.sort...") instead of text. Keys
+        // missing from the server file now fall back to the bundled defaults (the file itself is not modified).
+        try (java.io.InputStream bundled = plugin.getResource("lang.yml")) {
+            if (bundled != null) {
+                lang.setDefaults(YamlConfiguration.loadConfiguration(
+                        new java.io.InputStreamReader(bundled, java.nio.charset.StandardCharsets.UTF_8)));
+            }
+        } catch (java.io.IOException e) {
+            plugin.getLogger().warning("Could not read bundled lang.yml defaults: " + e.getMessage());
+        }
         prefix = lang.getString("prefix", "");
     }
 
