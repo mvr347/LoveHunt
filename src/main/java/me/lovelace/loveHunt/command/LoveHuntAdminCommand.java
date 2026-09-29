@@ -178,25 +178,6 @@ public final class LoveHuntAdminCommand implements CommandExecutor, TabCompleter
                 });
     }
 
-    /** {@code gui open <игрок>} — то же главное меню, что открывает NPC Охотник (доступно и из консоли). */
-    private void handleGui(CommandSender sender, String[] args) {
-        if (args.length < 3 || !args[1].equalsIgnoreCase("open")) {
-            lang.send(sender, "admin-gui-usage");
-            return;
-        }
-        Player target = Bukkit.getPlayerExact(args[2]);
-        if (target == null) {
-            lang.send(sender, "admin-unknown-player");
-            return;
-        }
-        if (!bountyService.isReady()) {
-            lang.send(sender, "not-ready");
-            return;
-        }
-        menuManager.openMain(target);
-        lang.send(sender, "admin-gui-opened", lang.placeholders("player", target.getName()));
-    }
-
     private void handleNpc(CommandSender sender, String[] args) {
         if (!(sender instanceof Player player)) {
             lang.send(sender, "only-player");
