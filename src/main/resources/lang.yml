@@ -2,6 +2,7 @@ prefix: "<gradient:#FF5555:#CC0000><bold>Охота</bold></gradient> <dark_gray
 no-permission: "<red>Нет прав."
 only-player: "<red>Команда доступна только игроку."
 not-ready: "<yellow>LoveHunt ещё загружает данные. Попробуйте через несколько секунд."
+main-menu-npc-only: "<yellow>Главное меню розыска открывает NPC Охотник — подойдите к нему."
 command-cooldown: "<red>Не спамьте командами."
 cancelled: "<yellow>Действие отменено."
 input-target:
@@ -91,7 +92,7 @@ top-entry: "<gray>{rank}. <yellow>{player}</yellow> — рейтинг <gold>{ra
 #      КОМАНДЫ (HELP)                        #
 # ========================================== #
 help-header: "<dark_gray>========== <gold>LoveHunt Помощь</gold> ==========</dark_gray>"
-help-main: "<aqua>/lovehunt</aqua> <gray>- Открыть главное меню розыска (алиасы: /hunt, /охота)</gray>"
+help-main: "<aqua>Главное меню розыска</aqua> <gray>- открывает NPC Охотник</gray>"
 help-hunts: "<aqua>/hunts</aqua> <gray>- Открыть список всех активных розысков</gray>"
 help-create: "<aqua>/lovehunt create</aqua> <gray>- Создать розыск (награда берётся из руки)</gray>"
 help-cancel: "<aqua>/lovehunt cancel</aqua> <gray>- Отменить текущий ввод</gray>"
@@ -109,6 +110,9 @@ admin-help-block: "<aqua>/lovehuntadmin block <игрок> <create|accept></aqua
 admin-help-unblock: "<aqua>/lovehuntadmin unblock <игрок> <create|accept></aqua> <gray>- Снять запрет с игрока</gray>"
 admin-help-create: "<aqua>/lovehuntadmin create <player|clan|server> <игрок> <кол-во> [материал]</aqua> <gray>- Создать розыск от имени администратора</gray>"
 admin-help-npc: "<aqua>/lovehuntadmin npc <bind|unbind></aqua> <gray>- Привязать/отвязать NPC пункта сдачи трофеев</gray>"
+admin-help-gui: "<aqua>/lovehuntadmin gui open <игрок></aqua> <gray>- Открыть игроку главное меню розыска</gray>"
+admin-gui-usage: "<red>Использование: /lovehuntadmin gui open <игрок>"
+admin-gui-opened: "<green>Главное меню розыска открыто для {player}."
 admin-help-footer: "<dark_gray>=========================================</dark_gray>"
 
 gui:
