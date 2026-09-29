@@ -11,7 +11,7 @@ softdepend:
   - LoveCore
 commands:
   lovehunt:
-    description: Opens LoveHunt menu.
+    description: LoveHunt player commands (the main menu is opened by the Hunter NPC).
     aliases:
       - hunt
       - lh
@@ -23,7 +23,7 @@ commands:
   lovehuntadmin:
     description: Administrative commands for LoveHunt (reload, block, admin-create, npc binding).
     permission: lovehunt.admin
-    usage: /<command> <reload|block|unblock|create|npc>
+    usage: /<command> <reload|block|unblock|create|npc|gui>
 permissions:
   lovehunt.use:
     default: true

@@ -140,7 +140,7 @@ public final class LoveHunt extends JavaPlugin {
         hunts.setExecutor(executor);
         hunts.setTabCompleter(executor);
 
-        LoveHuntAdminCommand adminExecutor = new LoveHuntAdminCommand(settings, lang, bountyService, citizensIntegration);
+        LoveHuntAdminCommand adminExecutor = new LoveHuntAdminCommand(settings, lang, bountyService, citizensIntegration, menuManager);
         PluginCommand adminCommand = getCommand("lovehuntadmin");
         if (adminCommand == null) {
             throw new IllegalStateException("Command lovehuntadmin is not defined in plugin.yml");
