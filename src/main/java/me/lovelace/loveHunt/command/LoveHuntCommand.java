@@ -84,6 +84,11 @@ public final class LoveHuntCommand implements CommandExecutor, TabCompleter {
             return true;
         }
         commandCooldowns.put(player.getUniqueId(), now);
+        // One entry per player who ever ran the command; entries older than the cooldown are dead weight.
+        if (commandCooldowns.size() > 256) {
+            long cutoff = now - settings.commandCooldownMs();
+            commandCooldowns.values().removeIf(t -> t < cutoff);
+        }
         if (args.length > 0 && args[0].equalsIgnoreCase("create")) {
             menuManager.beginCreate(player);
         } else if (label.equalsIgnoreCase("hunts")) {

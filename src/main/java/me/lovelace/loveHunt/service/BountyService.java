@@ -818,6 +818,11 @@ public final class BountyService {
     public void pruneCooldowns() {
         long cutoff = System.currentTimeMillis() - Duration.ofDays(settings.sameTargetCooldownDays()).toMillis();
         cooldowns.values().removeIf(lastTime -> lastTime < cutoff);
+        // Same leak, other map: one entry per hunted player, only ever overwritten. Entries older
+        // than the announcement cooldown can no longer suppress anything.
+        long announceCutoff = System.currentTimeMillis()
+                - Duration.ofMinutes(settings.serverAnnouncementCooldownMinutes()).toMillis();
+        lastAnnouncedServerHunt.values().removeIf(lastTime -> lastTime < announceCutoff);
         database.pruneCooldowns(cutoff).exceptionally(throwable -> {
             plugin.getLogger().log(Level.WARNING, "Failed to prune expired cooldowns", throwable);
             return null;
