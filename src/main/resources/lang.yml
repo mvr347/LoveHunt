@@ -114,7 +114,7 @@ admin-help-unblock: "<aqua>/lovehuntadmin unblock <игрок> <create|accept></
 admin-help-create: "<aqua>/lovehuntadmin create <player|clan|server> <игрок> <кол-во> [материал]</aqua> <gray>- Создать розыск от имени администратора</gray>"
 admin-help-npc: "<aqua>/lovehuntadmin npc <bind|unbind></aqua> <gray>- Привязать/отвязать NPC пункта сдачи трофеев</gray>"
 admin-help-gui: "<aqua>/lovehuntadmin gui open <игрок></aqua> <gray>- Открыть главное меню розыска игроку</gray>"
-admin-help-footer:"<dark_gray>=========================================</dark_gray>"
+admin-help-footer: "<dark_gray>=========================================</dark_gray>"
 
 gui:
   main-title: "<dark_gray>Главное меню"
