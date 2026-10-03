@@ -97,7 +97,7 @@ public final class Settings {
         clanBountyEnabled = config.getBoolean("clan-bounty.enabled", true);
         clanMaxTargets = Math.max(1, config.getInt("clan-bounty.max-targets", 10));
         clanEnemiesOnly = config.getBoolean("clan-bounty.enemies-only", true);
-        clanTreasuryCost = Math.max(0L, config.getLong("clan-bounty.treasury-cost", 250L));
+        clanTreasuryCost = Math.max(0L, dev.lovelace.lovecore.api.economy.MoneyConfig.getScaled(config, "clan-bounty.treasury-cost", 1_500L));
         clanCooldownHours = Math.max(1, config.getInt("clan-bounty.per-player-cooldown-hours", 24));
         clanMaxHunters = Math.max(1, config.getInt("clan-bounty.max-hunters", 25));
         serverMaxHunters = Math.max(1, config.getInt("server-bounty.max-hunters", 25));
