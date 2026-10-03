@@ -97,7 +97,7 @@ public final class Settings {
         clanBountyEnabled = config.getBoolean("clan-bounty.enabled", true);
         clanMaxTargets = Math.max(1, config.getInt("clan-bounty.max-targets", 10));
         clanEnemiesOnly = config.getBoolean("clan-bounty.enemies-only", true);
-        clanTreasuryCost = Math.max(0L, dev.lovelace.lovecore.api.economy.MoneyConfig.getScaled(config, "clan-bounty.treasury-cost", 1_500L));
+        clanTreasuryCost = Math.max(0L, readMoney(config, "clan-bounty.treasury-cost", 1_500L));
         clanCooldownHours = Math.max(1, config.getInt("clan-bounty.per-player-cooldown-hours", 24));
         clanMaxHunters = Math.max(1, config.getInt("clan-bounty.max-hunters", 25));
         serverMaxHunters = Math.max(1, config.getInt("server-bounty.max-hunters", 25));
@@ -418,5 +418,14 @@ public final class Settings {
         config.set("citizens.turn-in-npc-id", this.turnInNpcId);
         config.set("citizens.turn-in-npc-name", this.turnInNpcName);
         plugin.saveConfig();
+    }
+
+    /** Money key (number or "15i" text) with the LoveCore price index; plain default if LoveCore is missing. */
+    private static long readMoney(org.bukkit.configuration.file.FileConfiguration config, String path, long def) {
+        try {
+            return dev.lovelace.lovecore.api.economy.MoneyConfig.getScaled(config, path, def);
+        } catch (Throwable t) {
+            return def; // LoveCore is a soft dependency: its API classes may be absent
+        }
     }
 }
