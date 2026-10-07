@@ -8,6 +8,7 @@ import me.lovelace.loveHunt.model.Bounty;
 import me.lovelace.loveHunt.model.BountyType;
 import me.lovelace.loveHunt.model.CreateSession;
 import me.lovelace.loveHunt.model.HunterRating;
+import me.lovelace.loveHunt.model.ClanOnlineMode;
 import me.lovelace.loveHunt.model.SortMode;
 import me.lovelace.loveHunt.model.TypeFilter;
 import me.lovelace.loveHunt.service.BountyService;
@@ -254,10 +255,15 @@ public final class MenuManager {
     }
 
     public void handleClick(Player player, LoveHuntHolder holder, int slot) {
+        handleClick(player, holder, slot, false);
+    }
+
+    /** {@code rightClick} steps header switches backwards (members-menu style: LMB next, RMB previous). */
+    public void handleClick(Player player, LoveHuntHolder holder, int slot, boolean rightClick) {
         switch (holder.type()) {
             case MAIN -> handleMain(player, slot);
-            case MINE -> handleMine(player, holder, slot);
-            case ALL -> handleAll(player, holder, slot);
+            case MINE -> handleMine(player, holder, slot, rightClick);
+            case ALL -> handleAll(player, holder, slot, rightClick);
             case CONFIRM_CREATE -> handleCreateConfirm(player, holder, slot);
             case CONFIRM_ACCEPT -> handleAcceptConfirm(player, holder, slot);
             case CONFIRM_CANCEL -> handleCancelConfirm(player, holder, slot);
@@ -272,13 +278,13 @@ public final class MenuManager {
         else if (slot == MAIN_SIZE - 1) player.closeInventory();
     }
 
-    private void handleMine(Player player, LoveHuntHolder holder, int slot) {
+    private void handleMine(Player player, LoveHuntHolder holder, int slot, boolean rightClick) {
         if (holder.bountySlots().containsKey(slot)) {
             openBountyAction(player, holder, holder.bountySlots().get(slot));
             return;
         }
-        if (slot == MINE_CONTROLS[0]) openMine(player, 0, nextSort(holder.sortMode()), holder.typeFilter(), holder.search());
-        else if (slot == MINE_CONTROLS[1]) openMine(player, 0, holder.sortMode(), nextType(holder.typeFilter()), holder.search());
+        if (slot == MINE_CONTROLS[0]) openMine(player, 0, rightClick ? holder.sortMode().previous() : holder.sortMode().next(), holder.typeFilter(), holder.search());
+        else if (slot == MINE_CONTROLS[1]) openMine(player, 0, holder.sortMode(), rightClick ? holder.typeFilter().previous() : holder.typeFilter().next(), holder.search());
         else if (slot == 36 && holder.page() > 0) openMine(player, holder.page() - 1, holder.sortMode(), holder.typeFilter(), holder.search());
         else if (slot == 44) openMine(player, holder.page() + 1, holder.sortMode(), holder.typeFilter(), holder.search());
         else if (slot == 51) beginCreate(player);
@@ -286,20 +292,19 @@ public final class MenuManager {
         else if (slot == 53) player.closeInventory();
     }
 
-    private void handleAll(Player player, LoveHuntHolder holder, int slot) {
+    private void handleAll(Player player, LoveHuntHolder holder, int slot, boolean rightClick) {
         if (holder.bountySlots().containsKey(slot)) {
             openBountyAction(player, holder, holder.bountySlots().get(slot));
             return;
         }
-        if (slot == ALL_CONTROLS[0]) openAll(player, 0, nextSort(holder.sortMode()), holder.typeFilter(), holder.onlyMyClan(), holder.onlineOnly(), holder.search());
-        else if (slot == ALL_CONTROLS[1]) openAll(player, 0, holder.sortMode(), nextType(holder.typeFilter()), holder.onlyMyClan(), holder.onlineOnly(), holder.search());
+        if (slot == ALL_CONTROLS[0]) openAll(player, 0, rightClick ? holder.sortMode().previous() : holder.sortMode().next(), holder.typeFilter(), holder.onlyMyClan(), holder.onlineOnly(), holder.search());
+        else if (slot == ALL_CONTROLS[1]) openAll(player, 0, holder.sortMode(), rightClick ? holder.typeFilter().previous() : holder.typeFilter().next(), holder.onlyMyClan(), holder.onlineOnly(), holder.search());
         else if (slot == ALL_CONTROLS[2]) {
-            if (!holder.onlyMyClan() && !clanFilterAvailable(player)) {
-                lang.send(player, "clan-filter-unavailable");
-                return;
-            }
-            boolean[] next = nextClanOnline(holder.onlyMyClan(), holder.onlineOnly());
-            openAll(player, 0, holder.sortMode(), holder.typeFilter(), next[0], next[1], holder.search());
+            // "My clan" options are skipped for clanless players instead of showing an error.
+            ClanOnlineMode current = ClanOnlineMode.of(holder.onlyMyClan(), holder.onlineOnly());
+            boolean hasClan = clanFilterAvailable(player);
+            ClanOnlineMode next = rightClick ? current.previous(hasClan) : current.next(hasClan);
+            openAll(player, 0, holder.sortMode(), holder.typeFilter(), next.onlyMyClan(), next.onlineOnly(), holder.search());
         } else if (slot == 36 && holder.page() > 0) openAll(player, holder.page() - 1, holder.sortMode(), holder.typeFilter(), holder.onlyMyClan(), holder.onlineOnly(), holder.search());
         else if (slot == 44) openAll(player, holder.page() + 1, holder.sortMode(), holder.typeFilter(), holder.onlyMyClan(), holder.onlineOnly(), holder.search());
         else if (slot == 51) beginCreate(player);
@@ -438,7 +443,7 @@ public final class MenuManager {
         inventory.setItem(0, statsButton(player));
         inventory.setItem(ALL_CONTROLS[0], sortButton(sortMode));
         inventory.setItem(ALL_CONTROLS[1], typeFilterButton(typeFilter));
-        inventory.setItem(ALL_CONTROLS[2], clanOnlineButton(onlyMyClan, onlineOnly));
+        inventory.setItem(ALL_CONTROLS[2], clanOnlineButton(onlyMyClan, onlineOnly, clanFilterAvailable(player)));
     }
 
     private void addFooter(Inventory inventory, PageSlice slice) {
@@ -536,23 +541,6 @@ public final class MenuManager {
         list.sort(cmp);
     }
 
-    private SortMode nextSort(SortMode current) {
-        SortMode[] values = SortMode.values();
-        return values[(current.ordinal() + 1) % values.length];
-    }
-
-    private TypeFilter nextType(TypeFilter current) {
-        TypeFilter[] values = TypeFilter.values();
-        return values[(current.ordinal() + 1) % values.length];
-    }
-
-    private boolean[] nextClanOnline(boolean onlyMyClan, boolean onlineOnly) {
-        if (!onlyMyClan && !onlineOnly) return new boolean[]{true, false};
-        if (onlyMyClan && !onlineOnly) return new boolean[]{false, true};
-        if (!onlyMyClan && onlineOnly) return new boolean[]{true, true};
-        return new boolean[]{false, false};
-    }
-
     private boolean clanFilterAvailable(Player player) {
         return bountyService.clans().getClanTag(player.getUniqueId()) != null;
     }
@@ -614,28 +602,42 @@ public final class MenuManager {
         return button("gui.items.close", Material.BARRIER, "close-base64", lang.component("gui.close"), lang.components("gui.close-lore", Map.of(), false));
     }
 
-    // Keys below are the ones the shipped lang.yml actually defines (gui.all.*, gui.manage-extend*). The code used
-    // to look up gui.sort.* / gui.filter.* / gui.clan-filter.* / gui.extend*, which lang.yml never had, so the
-    // buttons showed the raw key as their name.
+    // Members-menu style switches: fixed name, lore lists every option with the current one marked, then the
+    // LMB/RMB hint. Option labels live in gui.switch.<switch>.options.<option>; Lang falls back to the bundled lang.yml for
+    // servers whose file predates these keys.
     private ItemStack sortButton(SortMode sortMode) {
         return button("gui.items.sort", Material.HOPPER, "sort-base64",
-                lang.component("gui.all.sort-" + sortMode.name().toLowerCase(Locale.ROOT)),
-                lang.components("gui.all.sort-hint", Map.of(), false));
+                lang.component("gui.switch.sort.name"),
+                switchLore("sort", sortMode, java.util.Arrays.asList(SortMode.values())));
     }
 
     private ItemStack typeFilterButton(TypeFilter typeFilter) {
         // Default skin is built in, so servers whose already-generated heads.yml predates this key still get the head.
         String texture = heads != null ? heads.base64("type-filter-base64", FILTER_HEAD) : FILTER_HEAD;
         return buttonWithTexture("gui.items.type-filter", Material.NAME_TAG, texture,
-                lang.component("gui.all.type-" + typeFilter.name().toLowerCase(Locale.ROOT)),
-                lang.components("gui.all.type-hint", Map.of(), false));
+                lang.component("gui.switch.type.name"),
+                switchLore("type", typeFilter, java.util.Arrays.asList(TypeFilter.values())));
     }
 
-    private ItemStack clanOnlineButton(boolean onlyMyClan, boolean onlineOnly) {
-        String key = onlyMyClan ? (onlineOnly ? "both" : "clan") : (onlineOnly ? "online" : "off");
+    private ItemStack clanOnlineButton(boolean onlyMyClan, boolean onlineOnly, boolean hasClan) {
+        List<ClanOnlineMode> options = java.util.Arrays.stream(ClanOnlineMode.values())
+                .filter(mode -> mode.availableFor(hasClan)).toList();
         return button("gui.items.clan-filter", Material.SHIELD, "clan-filter-base64",
-                lang.component("gui.all.clan-online-" + key),
-                lang.components("gui.all.clan-online-hint", Map.of(), false));
+                lang.component("gui.switch.clan-online.name"),
+                switchLore("clan-online", ClanOnlineMode.of(onlyMyClan, onlineOnly), options));
+    }
+
+    private <E extends Enum<E>> List<Component> switchLore(String switchKey, E current, List<E> options) {
+        List<Component> lore = new ArrayList<>();
+        for (E option : options) {
+            String label = lang.plainMini("gui.switch." + switchKey + ".options." + option.name().toLowerCase(Locale.ROOT).replace('_', '-'));
+            String line = option == current ? "<green>▶ " + label : "<gray>  " + label;
+            lore.add(lang.mini(line).decoration(TextDecoration.ITALIC, false));
+        }
+        lore.add(Component.empty());
+        lore.addAll(lang.components("gui.switch.hint", Map.of(), false).stream()
+                .map(c -> c.decoration(TextDecoration.ITALIC, false)).toList());
+        return lore;
     }
 
     private ItemStack extendButton(Bounty bounty) {

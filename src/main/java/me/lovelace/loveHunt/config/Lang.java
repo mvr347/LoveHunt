@@ -98,6 +98,15 @@ public final class Lang {
         return List.of(component(key, placeholders, withPrefix));
     }
 
+    /** Raw MiniMessage string of {@code key} (bundled default, then the key itself when missing). */
+    public String plainMini(String key) {
+        return lang.getString(key, key);
+    }
+
+    public Component mini(String raw) {
+        return deserialize(raw);
+    }
+
     public Component legacy(String sectionColorText) {
         return LegacyComponentSerializer.legacySection().deserialize(sectionColorText);
     }
