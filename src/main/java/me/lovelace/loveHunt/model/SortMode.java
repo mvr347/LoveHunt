@@ -5,5 +5,15 @@ public enum SortMode {
     REWARD,
     DATE,
     EXPIRING,
-    POPULAR
+    POPULAR;
+
+    public SortMode next() {
+        SortMode[] values = values();
+        return values[(ordinal() + 1) % values.length];
+    }
+
+    public SortMode previous() {
+        SortMode[] values = values();
+        return values[(ordinal() - 1 + values.length) % values.length];
+    }
 }

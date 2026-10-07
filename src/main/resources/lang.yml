@@ -30,7 +30,6 @@ target-killed-hunter: "<yellow>Цель убила охотника. Розыс�
 bounty-completed: "<green>{hunter} выполнил розыск на {target}."
 reward-given: "<green>Вы получили награду: <yellow>{amount}× {item}</yellow>."
 inventory-drop: "<yellow>В инвентаре нет места, предмет выпал на землю."
-clan-filter-unavailable: "<red>Фильтр доступен только участникам клана."
 cancel-order-success: "<green>Заказ отменён, награда возвращена."
 cancel-order-failed: "<red>Не удалось отменить заказ."
 bounty-frozen: "<red>Цель давно не заходила на сервер, розыск временно заморожен."
@@ -151,33 +150,34 @@ gui:
       - "<gray>Просмотр созданных вами заказов."
       - "<green>ЛКМ <gray>— открыть"
     stats: "<gold>Ваша статистика"
+  # 2026-10-07: header switches in the members-menu style (LMB next, RMB previous).
+  # Replaces gui.all.sort-*/type-*/clan-online-* - one key per option, the name is fixed.
+  switch:
+    hint:
+      - "<yellow>ЛКМ <gray>- дальше, <yellow>ПКМ <gray>- назад"
+    sort:
+      name: "<gold>Сортировка"
+      options:
+        name: "по имени A-Z"
+        reward: "по награде"
+        date: "новые"
+        expiring: "скоро истекают"
+        popular: "популярные"
+    type:
+      name: "<gold>Тип"
+      options:
+        all: "все"
+        player: "игроки"
+        clan: "кланы"
+        server: "сервер"
+    clan-online:
+      name: "<gold>Клан и онлайн"
+      options:
+        "off": "выкл"
+        clan: "только мой клан"
+        online: "только онлайн-цели"
+        both: "мой клан + онлайн"
   all:
-    sort-name: "<yellow>Сортировка: по имени A-Z"
-    sort-reward: "<yellow>Сортировка: по награде ↓"
-    sort-date: "<yellow>Сортировка: новые"
-    sort-expiring: "<yellow>Сортировка: скоро истекает"
-    sort-popular: "<yellow>Сортировка: популярные"
-    sort-hint:
-      - ""
-      - "<gray>Изменить порядок сортировки контрактов."
-      - "<green>ЛКМ <gray>— сменить сортировку"
-    type-all: "<aqua>Тип: все"
-    type-player: "<aqua>Тип: игроки"
-    type-clan: "<aqua>Тип: кланы"
-    type-server: "<aqua>Тип: сервер"
-    type-hint:
-      - ""
-      - "<gray>Переключение типа отображаемых контрактов."
-      - "<green>ЛКМ <gray>— сменить тип"
-    clan-online-off: "<gray>Клан/Онлайн: выкл"
-    clan-online-clan: "<green>Только мой клан"
-    clan-online-online: "<green>Только онлайн-цели"
-    clan-online-both: "<green>Мой клан + только онлайн"
-    clan-online-hint:
-      - ""
-      - "<gray>Фильтрация по соклановцам и статус-онлайн."
-      - "<green>ЛКМ <gray>— переключить фильтр"
-    clan-filter-unavailable: "<red>Доступно только участникам клана"
     previous: "<yellow>← Предыдущая страница"
     previous-lore:
       - ""

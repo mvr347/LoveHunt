@@ -27,7 +27,7 @@ public final class MenuListener implements Listener {
         if (event.getRawSlot() < 0 || event.getRawSlot() >= event.getInventory().getSize()) {
             return;
         }
-        menuManager.handleClick(player, holder, event.getRawSlot());
+        menuManager.handleClick(player, holder, event.getRawSlot(), event.isRightClick());
     }
 
     @EventHandler
