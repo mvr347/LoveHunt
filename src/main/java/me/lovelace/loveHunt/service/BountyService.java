@@ -229,7 +229,7 @@ public final class BountyService {
             return CompletableFuture.completedFuture(false);
         }
         if (ratingService.isRatingTooLowToAccept(hunter.getUniqueId())) {
-            lang.send(hunter, "rating-too-low");
+            lang.notice(hunter, "rating-too-low");
             return CompletableFuture.completedFuture(false);
         }
         if (isFrozen(bounty)) {
@@ -331,7 +331,7 @@ public final class BountyService {
 
         ratingService.recordCompletion(hunter.getUniqueId());
         giveOrDrop(hunter, finalReward);
-        lang.send(hunter, "reward-given", lang.placeholders("amount", finalReward.amount(), "item", finalReward.displayName()));
+        lang.important(hunter, "reward-given", lang.placeholders("amount", finalReward.amount(), "item", finalReward.displayName()));
         Bukkit.broadcast(lang.component("bounty-completed", lang.placeholders("hunter", hunter.getName(), "target", bounty.targetName()), true));
         Bukkit.getPluginManager().callEvent(new BountyClaimEvent(bounty, hunter));
 
@@ -645,7 +645,7 @@ public final class BountyService {
                 database.deleteHunter(bounty.id(), hunterUuid);
                 Player hunter = Bukkit.getPlayer(hunterUuid);
                 if (hunter != null && hunter.isOnline()) {
-                    lang.send(hunter, "target-fled-hunter-notify", lang.placeholders("target", target.getName()));
+                    lang.important(hunter, "target-fled-hunter-notify", lang.placeholders("target", target.getName()));
                 }
             }
         }
@@ -921,7 +921,7 @@ public final class BountyService {
         HashMap<Integer, ItemStack> leftovers = player.getInventory().addItem(reward.stack());
         for (ItemStack leftover : leftovers.values()) {
             player.getWorld().dropItemNaturally(player.getLocation(), leftover);
-            lang.send(player, "inventory-drop");
+            lang.important(player, "inventory-drop");
         }
     }
 
@@ -950,7 +950,7 @@ public final class BountyService {
                 for (PendingReward reward : pending) {
                     giveOrDrop(player, reward.reward());
                 }
-                lang.send(player, "pending-rewards-delivered", lang.placeholders("count", String.valueOf(pending.size())));
+                lang.important(player, "pending-rewards-delivered", lang.placeholders("count", String.valueOf(pending.size())));
             });
         });
     }

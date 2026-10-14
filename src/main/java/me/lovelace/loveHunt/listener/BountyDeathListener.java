@@ -89,8 +89,8 @@ public final class BountyDeathListener implements Listener {
             }
             if (accepted.targetUuid().equals(killer.getUniqueId())) {
                 bountyService.cancel(accepted);
-                lang.send(victim, "target-killed-hunter");
-                lang.send(killer, "target-killed-hunter");
+                lang.important(victim, "target-killed-hunter");
+                lang.important(killer, "target-killed-hunter");
                 return;
             }
         }

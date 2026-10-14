@@ -315,7 +315,7 @@ public final class MenuManager {
     private void openBountyAction(Player player, LoveHuntHolder origin, long bountyId) {
         Bounty bounty = bountyService.get(bountyId);
         if (bounty == null) {
-            lang.send(player, "bounty-unavailable");
+            lang.notice(player, "bounty-unavailable");
             reopen(player, origin);
             return;
         }
@@ -336,7 +336,7 @@ public final class MenuManager {
         if (slot == backSlot) { reopen(player, holder); return; }
         Bounty bounty = bountyService.get(holder.bountyId());
         if (bounty == null) {
-            lang.send(player, "bounty-unavailable");
+            lang.notice(player, "bounty-unavailable");
             reopen(player, holder);
             return;
         }
@@ -350,7 +350,7 @@ public final class MenuManager {
                 lang.send(player, result.messageKey(), result.placeholders());
                 return;
             }
-            lang.send(player, "extend-success", lang.placeholders("amount", String.valueOf(result.cost()), "item", result.bounty().reward().displayName()));
+            lang.important(player, "extend-success", lang.placeholders("amount", String.valueOf(result.cost()), "item", result.bounty().reward().displayName()));
             openManage(player, holder, result.bounty());
         }
     }
@@ -369,9 +369,9 @@ public final class MenuManager {
         player.closeInventory();
         CreateSession finalSession = session;
         bountyService.createPlayerBounty(player, session).thenAccept(bounty -> Bukkit.getScheduler().runTask(plugin, () ->
-                lang.send(player, "create-success", lang.placeholders("target", finalSession.targetName(), "amount", finalSession.reward().amount(), "item", finalSession.reward().displayName()))))
+                lang.important(player, "create-success", lang.placeholders("target", finalSession.targetName(), "amount", finalSession.reward().amount(), "item", finalSession.reward().displayName()))))
                 .exceptionally(throwable -> {
-                    Bukkit.getScheduler().runTask(plugin, () -> lang.send(player, "create-failed"));
+                    Bukkit.getScheduler().runTask(plugin, () -> lang.notice(player, "create-failed"));
                     return null;
                 });
     }
@@ -382,15 +382,15 @@ public final class MenuManager {
         Bounty bounty = bountyService.get(holder.bountyId());
         bountyService.accept(player, bounty).thenAccept(success -> Bukkit.getScheduler().runTask(plugin, () -> {
             if (success) {
-                lang.send(player, "accept-success");
+                lang.notice(player, "accept-success");
                 player.closeInventory();
             } else {
-                lang.send(player, "accept-failed");
+                lang.notice(player, "accept-failed");
                 reopen(player, holder);
             }
         })).exceptionally(throwable -> {
             Bukkit.getScheduler().runTask(plugin, () -> {
-                lang.send(player, "accept-failed");
+                lang.notice(player, "accept-failed");
                 reopen(player, holder);
             });
             return null;
@@ -403,11 +403,11 @@ public final class MenuManager {
         Bounty bounty = bountyService.get(holder.bountyId());
         boolean success = bountyService.cancelByCreator(player, bounty);
         if (!success) {
-            lang.send(player, "cancel-order-failed");
+            lang.notice(player, "cancel-order-failed");
             reopen(player, holder);
             return;
         }
-        lang.send(player, "cancel-order-success");
+        lang.important(player, "cancel-order-success");
         reopen(player, holder);
     }
 
