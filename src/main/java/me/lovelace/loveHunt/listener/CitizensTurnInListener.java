@@ -108,23 +108,23 @@ public final class CitizensTurnInListener implements Listener {
         if (bountyId == null) {
             bountyId = findTrophyInInventory(player);
             if (bountyId == null) {
-                lang.send(player, "turnin-wrong-item");
+                lang.notice(player, "turnin-wrong-item");
                 return;
             }
         }
         Bounty bounty = bountyService.get(bountyId);
         if (bounty == null) {
-            lang.send(player, "turnin-bounty-gone");
+            lang.notice(player, "turnin-bounty-gone");
             return;
         }
         if (!bountyService.hasAccepted(player.getUniqueId(), bounty.id())) {
-            lang.send(player, "turnin-not-your-bounty");
+            lang.notice(player, "turnin-not-your-bounty");
             return;
         }
 
         consumeTrophy(player, bountyId);
         bountyService.complete(bounty, player);
-        lang.send(player, "turnin-success", lang.placeholders("target", bounty.targetName()));
+        lang.important(player, "turnin-success", lang.placeholders("target", bounty.targetName()));
         maybeSayAmbient(player);
     }
 

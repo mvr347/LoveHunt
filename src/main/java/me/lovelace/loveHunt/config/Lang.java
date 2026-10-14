@@ -5,7 +5,9 @@ import net.kyori.adventure.text.event.ClickEvent;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import org.bukkit.command.CommandSender;
+import me.lovelace.loveHunt.util.Notify;
 import org.bukkit.configuration.file.YamlConfiguration;
+import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.File;
@@ -53,6 +55,27 @@ public final class Lang {
         for (Component component : components(key, placeholders, true)) {
             sender.sendMessage(component);
         }
+    }
+
+    /**
+     * Event-style notice (action bar by default, chat fallback decided by LoveNotify). Command replies,
+     * input errors and prompts must keep using {@link #send}.
+     */
+    public void notice(Player player, String key) {
+        notice(player, key, Map.of());
+    }
+
+    public void notice(Player player, String key, Map<String, String> placeholders) {
+        Notify.event(player, component(key, placeholders, false));
+    }
+
+    /** Critical notice (reward/escrow moved, bounty cancelled): LoveNotify always duplicates it to chat. */
+    public void important(Player player, String key) {
+        important(player, key, Map.of());
+    }
+
+    public void important(Player player, String key, Map<String, String> placeholders) {
+        Notify.important(player, component(key, placeholders, false));
     }
 
     /**
