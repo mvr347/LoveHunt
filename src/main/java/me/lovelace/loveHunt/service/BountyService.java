@@ -79,7 +79,7 @@ public final class BountyService {
                     cooldowns.putAll(loadedCooldowns);
                     for (Bounty bounty : bounties) {
                         cache(bounty);
-                        Bukkit.getPluginManager().callEvent(new BountyCreateEvent(bounty, true));
+                        Bukkit.getPluginManager().callEvent(new BountyCreateEvent(bounty, !Bukkit.isPrimaryThread()));
                     }
                     return null;
                 })
@@ -207,18 +207,59 @@ public final class BountyService {
         long expires = now + Duration.ofHours(settings.playerBaseDurationHours()).toMillis();
         Bounty draft = new Bounty(0L, BountyType.PLAYER, session.targetUuid(), session.targetName(), creator.getUniqueId(), creator.getName(),
                 null, session.reward(), now, expires, BountyStatus.ACTIVE);
-        return database.insertBounty(draft).thenApply(bounty -> {
-            cache(bounty);
-            Bukkit.getPluginManager().callEvent(new BountyCreateEvent(bounty, true));
+        CompletableFuture<Bounty> inserted = database.insertBounty(draft);
+        // Refund only when the INSERT itself failed. Once the row exists in the DB the reward lives
+        // in the bounty; a failure after that point (event dispatch) must never hand the items back.
+        inserted.whenComplete((bounty, throwable) -> {
+            if (throwable != null) {
+                plugin.getLogger().log(Level.SEVERE, "Unable to create bounty", throwable);
+                runOnMain(() -> giveOrDrop(creator, session.reward()));
+            }
+        });
+        return inserted.thenCompose(this::publishCreated).thenApply(bounty -> {
             cooldowns.put(cooldownKey(creator.getUniqueId(), session.targetUuid()), now);
             database.upsertCooldown(creator.getUniqueId(), session.targetUuid(), now);
             return bounty;
-        }).whenComplete((bounty, throwable) -> {
-            if (throwable != null) {
-                plugin.getLogger().log(Level.SEVERE, "Unable to create bounty", throwable);
-                Bukkit.getScheduler().runTask(plugin, () -> giveOrDrop(creator, session.reward()));
-            }
         });
+    }
+
+    /**
+     * Dispatches {@link BountyCreateEvent} on the main thread and only then caches the bounty.
+     * If dispatch throws, the bounty is not cached (the DB row stays and is picked up on reload).
+     */
+    private CompletableFuture<Bounty> publishCreated(Bounty bounty) {
+        CompletableFuture<Bounty> result = new CompletableFuture<>();
+        Runnable task = () -> {
+            try {
+                Bukkit.getPluginManager().callEvent(new BountyCreateEvent(bounty, !Bukkit.isPrimaryThread()));
+                cache(bounty);
+                result.complete(bounty);
+            } catch (Throwable t) {
+                plugin.getLogger().log(Level.SEVERE, "Bounty " + bounty.id() + " was saved but event dispatch failed", t);
+                result.completeExceptionally(t);
+            }
+        };
+        runOnMain(task, result);
+        return result;
+    }
+
+    private void runOnMain(Runnable task) {
+        runOnMain(task, null);
+    }
+
+    private void runOnMain(Runnable task, CompletableFuture<?> onFailure) {
+        if (Bukkit.isPrimaryThread()) {
+            task.run();
+            return;
+        }
+        try {
+            Bukkit.getScheduler().runTask(plugin, task);
+        } catch (RuntimeException e) {
+            // Plugin disabled mid-flight: nothing can be scheduled any more.
+            if (onFailure != null) {
+                onFailure.completeExceptionally(e);
+            }
+        }
     }
 
     public CompletableFuture<Boolean> accept(Player hunter, Bounty bounty) {
@@ -235,7 +276,7 @@ public final class BountyService {
         if (isFrozen(bounty)) {
             return CompletableFuture.completedFuture(false);
         }
-        BountyAcceptEvent event = new BountyAcceptEvent(hunter, bounty, true);
+        BountyAcceptEvent event = new BountyAcceptEvent(hunter, bounty, !Bukkit.isPrimaryThread());
         Bukkit.getPluginManager().callEvent(event);
         if (event.isCancelled()) {
             return CompletableFuture.completedFuture(false);
@@ -555,11 +596,7 @@ public final class BountyService {
             long now = System.currentTimeMillis();
             Bounty draft = new Bounty(0L, BountyType.CLAN, targetUuid, targetName, creatorUuid, creatorName, clanTag, reward,
                     now, now + Duration.ofHours(settings.clanBaseDurationHours()).toMillis(), BountyStatus.ACTIVE);
-            return database.insertBounty(draft).thenApply(bounty -> {
-                cache(bounty);
-                Bukkit.getPluginManager().callEvent(new BountyCreateEvent(bounty, true));
-                return bounty;
-            });
+            return database.insertBounty(draft).thenCompose(this::publishCreated);
         });
     }
 
@@ -590,11 +627,7 @@ public final class BountyService {
     private CompletableFuture<Bounty> createServerBounty(UUID targetUuid, String targetName, RewardItem reward, String creatorLabel) {
         long now = System.currentTimeMillis();
         Bounty draft = new Bounty(0L, BountyType.SERVER, targetUuid, targetName, null, creatorLabel, null, reward, now, null, BountyStatus.ACTIVE);
-        return database.insertBounty(draft).thenApply(bounty -> {
-            cache(bounty);
-            Bukkit.getPluginManager().callEvent(new BountyCreateEvent(bounty, true));
-            return bounty;
-        });
+        return database.insertBounty(draft).thenCompose(this::publishCreated);
     }
 
     /**
@@ -775,11 +808,7 @@ public final class BountyService {
             case SERVER -> null;
         };
         Bounty draft = new Bounty(0L, type, targetUuid, targetName, creatorUuid, creatorName, clanTag, reward, now, expiresAt, BountyStatus.ACTIVE);
-        return database.insertBounty(draft).thenApply(bounty -> {
-            cache(bounty);
-            Bukkit.getPluginManager().callEvent(new BountyCreateEvent(bounty, true));
-            return bounty;
-        });
+        return database.insertBounty(draft).thenCompose(this::publishCreated);
     }
 
     private RewardCheck resolveReward(Player creator) {

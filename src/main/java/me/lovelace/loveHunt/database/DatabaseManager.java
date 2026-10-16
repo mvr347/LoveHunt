@@ -30,6 +30,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.Executors;
 import java.util.logging.Level;
 import java.util.regex.Pattern;
@@ -452,12 +453,20 @@ public final class DatabaseManager {
     }
 
     public void close() {
+        // Drain queued writes first: closing the pool under the executor dropped pending saves.
+        executor.shutdown();
         try {
+            if (!executor.awaitTermination(10, TimeUnit.SECONDS)) {
+                executor.shutdownNow();
+                executor.awaitTermination(2, TimeUnit.SECONDS);
+            }
+        } catch (InterruptedException e) {
+            executor.shutdownNow();
+            Thread.currentThread().interrupt();
+        } finally {
             if (dataSource != null) {
                 dataSource.close();
             }
-        } finally {
-            executor.shutdownNow();
         }
     }
 
