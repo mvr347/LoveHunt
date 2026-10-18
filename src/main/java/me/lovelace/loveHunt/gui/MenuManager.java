@@ -719,9 +719,20 @@ public final class MenuManager {
             List<Component> lore = new ArrayList<>();
             lore.add(lang.legacy("§7Тип: §f" + bounty.type().name()));
             if (bounty.reward() != null) {
-                lore.add(lang.legacy("§7Награда: §a" + bounty.reward().amount() + " §7" + bounty.reward().displayName()));
+                String rewardName = bounty.reward().displayName();
+                if (rewardName != null && rewardName.contains("%img_")) {
+                    lore.add(lang.legacy("§7Награда: §f" + bounty.reward().amount() + " §f" + rewardName));
+                } else {
+                    lore.add(lang.legacy("§7Награда: §a" + bounty.reward().amount() + " §7" + rewardName));
+                }
             }
             lore.add(lang.legacy("§7Истекает: §e" + TimeUtil.compact(Math.max(0, bounty.expiresAt() - System.currentTimeMillis()))));
+            lore.add(lang.legacy("§8§m─────────────────────"));
+            if (viewer != null && bounty.creatorUuid() != null && bounty.creatorUuid().equals(viewer.getUniqueId())) {
+                lore.add(lang.legacy("§aЛКМ §8— §7управление заказом"));
+            } else {
+                lore.add(lang.legacy("§aЛКМ §8— §7принять заказ"));
+            }
             meta.lore(lore);
             meta.addItemFlags(ItemFlag.values());
             head.setItemMeta(meta);
@@ -735,9 +746,14 @@ public final class MenuManager {
         ItemMeta meta = head.getItemMeta();
         if (meta != null) {
             meta.displayName(lang.legacy("§e" + session.targetName()).decoration(TextDecoration.ITALIC, false));
+            String rewardName = session.reward().displayName();
+            String rewardLine = (rewardName != null && rewardName.contains("%img_"))
+                    ? "§7Награда: §f" + session.reward().amount() + " §f" + rewardName
+                    : "§7Награда: §a" + session.reward().amount() + " §7" + rewardName;
             meta.lore(List.of(
-                    lang.legacy("§7Награда: §a" + session.reward().amount() + " §7" + session.reward().displayName()),
-                    lang.legacy("§7Подтвердите создание ордера")
+                    lang.legacy(rewardLine),
+                    lang.legacy("§8§m─────────────────────"),
+                    lang.legacy("§aЛКМ §8— §7подтвердить создание")
             ));
             meta.addItemFlags(ItemFlag.values());
             head.setItemMeta(meta);

@@ -122,45 +122,44 @@ admin-help-gui: "<aqua>/lovehuntadmin gui open <игрок></aqua> <gray>- От�
 admin-help-footer: "<dark_gray>=========================================</dark_gray>"
 
 gui:
-  main-title: "<dark_gray>Главное меню"
-  mine-title: "<dark_gray>Мои розыски"
-  all-title: "<dark_gray>Все розыски"
-  confirm-create-title: "<dark_gray>Подтверждение создания"
-  confirm-accept-title: "<dark_gray>Подтверждение принятия"
-  confirm-cancel-title: "<dark_gray>Подтверждение отмены"
-  manage-title: "<dark_gray>Управление заказом"
+  main-title: "<gold>Главное меню"
+  mine-title: "<gold>Мои розыски"
+  all-title: "<gold>Все розыски"
+  confirm-create-title: "<gold>Подтверждение создания"
+  confirm-accept-title: "<gold>Подтверждение принятия"
+  confirm-cancel-title: "<gold>Подтверждение отмены"
+  manage-title: "<gold>Управление заказом"
   back: "<yellow>Назад"
   back-lore:
-    - ""
-    - "<gray>Вернуться в предыдущее меню."
-    - "<green>ЛКМ <gray>— назад"
+    - "<dark_gray><st>─────────────────────</st></dark_gray>"
+    - "<green>ЛКМ <dark_gray>— <gray>вернуться"
   close: "<red>Закрыть"
   close-lore:
-    - ""
-    - "<gray>Закрыть окно интерфейса."
-    - "<green>ЛКМ <gray>— закрыть"
+    - "<dark_gray><st>─────────────────────</st></dark_gray>"
+    - "<green>ЛКМ <dark_gray>— <gray>закрыть"
   create: "<green>Создать заказ"
   create-lore:
-    - ""
     - "<gray>Поставить новый розыск на игрока."
-    - "<green>ЛКМ <gray>— создать заказ"
+    - "<dark_gray><st>─────────────────────</st></dark_gray>"
+    - "<green>ЛКМ <dark_gray>— <gray>создать заказ"
   main:
     all: "<gold>Все розыски"
     all-lore:
-      - ""
       - "<gray>Просмотр списка всех активных розысков."
-      - "<green>ЛКМ <gray>— открыть"
+      - "<dark_gray><st>─────────────────────</st></dark_gray>"
+      - "<green>ЛКМ <dark_gray>— <gray>открыть"
     mine: "<yellow>Мои розыски"
     mine-lore:
-      - ""
       - "<gray>Просмотр созданных вами заказов."
-      - "<green>ЛКМ <gray>— открыть"
+      - "<dark_gray><st>─────────────────────</st></dark_gray>"
+      - "<green>ЛКМ <dark_gray>— <gray>открыть"
     stats: "<gold>Ваша статистика"
-  # 2026-10-07: header switches in the members-menu style (LMB next, RMB previous).
-  # Replaces gui.all.sort-*/type-*/clan-online-* - one key per option, the name is fixed.
+  # Header switches in the members-menu style (LMB next, RMB previous).
   switch:
     hint:
-      - "<yellow>ЛКМ <gray>- дальше, <yellow>ПКМ <gray>- назад"
+      - "<dark_gray><st>─────────────────────</st></dark_gray>"
+      - "<green>ЛКМ <dark_gray>— <gray>вперёд"
+      - "<gold>ПКМ <dark_gray>— <gray>назад"
     sort:
       name: "<gold>Сортировка"
       options:
@@ -184,25 +183,23 @@ gui:
         online: "только онлайн-цели"
         both: "мой клан + онлайн"
   all:
-    previous: "<yellow>← Предыдущая страница"
+    previous: "<yellow>Предыдущая страница"
     previous-lore:
-      - ""
       - "<gray>Перейти на предыдущую страницу."
-      - "<green>ЛКМ <gray>— назад"
-    next: "<yellow>Следующая страница →"
+      - "<dark_gray><st>─────────────────────</st></dark_gray>"
+      - "<green>ЛКМ <dark_gray>— <gray>назад"
+    next: "<yellow>Следующая страница"
     next-lore:
-      - ""
       - "<gray>Перейти на следующую страницу."
-      - "<green>ЛКМ <gray>— вперёд"
+      - "<dark_gray><st>─────────────────────</st></dark_gray>"
+      - "<green>ЛКМ <dark_gray>— <gray>вперёд"
     empty: "<red>Розыски не найдены"
     empty-lore:
-      - ""
       - "<gray>В данный момент активных контрактов нет."
       - "<gray>Нажмите на «Создать заказ», чтобы разместить новый."
   mine:
     empty: "<red>У вас нет заказов"
     empty-lore:
-      - ""
       - "<gray>Вы ещё не создали ни одного розыска."
       - "<gray>Нажмите на «Создать заказ», чтобы разместить новый."
   confirm:
@@ -210,31 +207,30 @@ gui:
     accept-name: "<gold>Принять розыск"
     confirm: "<green>Подтвердить"
     confirm-lore:
-      - ""
       - "<gray>Подтвердить действие."
-      - "<green>ЛКМ <gray>— подтвердить"
+      - "<dark_gray><st>─────────────────────</st></dark_gray>"
+      - "<green>ЛКМ <dark_gray>— <gray>подтвердить"
     confirm-delete-lore:
-      - ""
       - "<gray>Подтвердить отмену заказа."
-      - "<green>ЛКМ <gray>— подтвердить отмену"
+      - "<dark_gray><st>─────────────────────</st></dark_gray>"
+      - "<green>ЛКМ <dark_gray>— <gray>подтвердить отмену"
     cancel: "<red>Отмена"
     cancel-lore:
-      - ""
       - "<gray>Отменить действие и вернуться."
-      - "<green>ЛКМ <gray>— отменить"
+      - "<dark_gray><st>─────────────────────</st></dark_gray>"
+      - "<green>ЛКМ <dark_gray>— <gray>отменить"
     cancel-order: "<red>Отменить заказ"
     cancel-order-lore:
-      - ""
       - "<gray>Отменить ваш заказ и вернуть награду."
-      - "<green>ЛКМ <gray>— отменить заказ"
+      - "<dark_gray><st>─────────────────────</st></dark_gray>"
+      - "<green>ЛКМ <dark_gray>— <gray>отменить заказ"
   manage-no-hunters: "<yellow>Охотников нет"
   manage-no-hunters-lore:
-    - ""
     - "<gray>Пока никто не принял этот розыск."
     - "<gray>Ожидайте, пока другие игроки возьмут контракт."
   manage-extend: "<aqua>Продлить на 1 день"
   manage-extend-hint:
-    - ""
     - "<gray>Продлить время действия заказа на 1 день."
     - "<gray>Стоимость: <yellow>{amount}× {item}</yellow>"
-    - "<green>ЛКМ <gray>— продлить заказ"
+    - "<dark_gray><st>─────────────────────</st></dark_gray>"
+    - "<green>ЛКМ <dark_gray>— <gray>продлить заказ"
