@@ -12,6 +12,11 @@ import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -34,18 +39,46 @@ public final class Lang {
             plugin.saveResource("lang.yml", false);
         }
         lang = YamlConfiguration.loadConfiguration(file);
-        // saveResource only writes lang.yml when it does not exist yet, so a server that updated the plugin keeps
-        // an old file without the new keys and players saw the raw key ("gui.sort...") instead of text. Keys
-        // missing from the server file now fall back to the bundled defaults (the file itself is not modified).
-        try (java.io.InputStream bundled = plugin.getResource("lang.yml")) {
-            if (bundled != null) {
-                lang.setDefaults(YamlConfiguration.loadConfiguration(
-                        new java.io.InputStreamReader(bundled, java.nio.charset.StandardCharsets.UTF_8)));
-            }
-        } catch (java.io.IOException e) {
-            plugin.getLogger().warning("Could not read bundled lang.yml defaults: " + e.getMessage());
+        YamlConfiguration bundled = loadBundled();
+        if (bundled != null) {
+            migrate(file, bundled);
+            // Keys missing from the server file fall back to the bundled defaults (a server that updated the plugin keeps
+            // its old file, so new keys would otherwise show as raw key names).
+            lang.setDefaults(bundled);
         }
         prefix = lang.getString("prefix", "");
+    }
+
+    /**
+     * Takes the reworded sections of the jar's lang.yml into an older server file (see {@link LangMigrator}). The previous
+     * file stays next to it as {@code lang.yml.v<old version>.bak}, so an admin's edits are never lost.
+     */
+    private void migrate(File file, YamlConfiguration bundled) {
+        int before = lang.getInt(LangMigrator.VERSION_KEY, 1);
+        if (!LangMigrator.migrate(lang, bundled)) {
+            return;
+        }
+        File backup = new File(plugin.getDataFolder(), "lang.yml.v" + before + ".bak");
+        try {
+            if (!backup.exists()) {
+                Files.copy(file.toPath(), backup.toPath());
+            }
+            lang.save(file);
+            plugin.getLogger().info("lang.yml updated to version " + LangMigrator.latestVersion()
+                    + " (previous file kept as " + backup.getName() + ")");
+        } catch (IOException e) {
+            // The new texts still work in memory; the file is left as it was so nothing is lost.
+            plugin.getLogger().warning("Could not save the updated lang.yml: " + e.getMessage());
+        }
+    }
+
+    private YamlConfiguration loadBundled() {
+        try (InputStream in = plugin.getResource("lang.yml")) {
+            return in == null ? null : YamlConfiguration.loadConfiguration(new InputStreamReader(in, StandardCharsets.UTF_8));
+        } catch (IOException e) {
+            plugin.getLogger().warning("Could not read bundled lang.yml defaults: " + e.getMessage());
+            return null;
+        }
     }
 
     public void send(CommandSender sender, String key) {
