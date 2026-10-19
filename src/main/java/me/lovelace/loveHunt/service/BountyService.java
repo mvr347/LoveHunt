@@ -528,7 +528,18 @@ public final class BountyService {
         }
     }
 
-    public ExtendResult extend(Player creator, Bounty bounty) {
+    /** Items one extension of {@code bounty} costs (the same formula the GUI shows and {@link #extend} charges). */
+    public int extendCost(Bounty bounty) {
+        boolean clan = bounty.type() == BountyType.CLAN;
+        int costPercent = clan ? settings.clanExtendCostPercent() : settings.playerExtendCostPercent();
+        return Math.max(1, (int) Math.ceil(bounty.reward().amount() * (costPercent / 100.0)));
+    }
+
+    /**
+     * Why {@link #extend} would refuse {@code bounty} for {@code creator} right now, or {@code null} when it would
+     * charge and extend. Read-only: no items are taken.
+     */
+    public ExtendResult extendRefusal(Player creator, Bounty bounty) {
         if (bounty == null || bounty.status() != BountyStatus.ACTIVE || !bountiesById.containsKey(bounty.id())) {
             return ExtendResult.error("bounty-unavailable");
         }
@@ -539,17 +550,25 @@ public final class BountyService {
         boolean clan = bounty.type() == BountyType.CLAN;
         int baseHours = clan ? settings.clanBaseDurationHours() : settings.playerBaseDurationHours();
         int maxDays = clan ? settings.clanMaxDurationDays() : settings.playerMaxDurationDays();
-        int costPercent = clan ? settings.clanExtendCostPercent() : settings.playerExtendCostPercent();
         int currentTotalDays = (int) Math.ceil(baseHours / 24.0) + bounty.extendedDays();
         if (currentTotalDays >= maxDays) {
             return ExtendResult.error("extend-max-duration");
         }
-        int currentAmount = bounty.reward().amount();
-        int cost = Math.max(1, (int) Math.ceil(currentAmount * (costPercent / 100.0)));
-        RewardItem costItem = bounty.reward().withAmount(cost);
-        if (!ItemUtil.hasSimilar(creator, costItem)) {
+        int cost = extendCost(bounty);
+        if (!ItemUtil.hasSimilar(creator, bounty.reward().withAmount(cost))) {
             return ExtendResult.error("extend-not-enough-items", Map.of("amount", String.valueOf(cost), "item", bounty.reward().displayName()));
         }
+        return null;
+    }
+
+    public ExtendResult extend(Player creator, Bounty bounty) {
+        ExtendResult refusal = extendRefusal(creator, bounty);
+        if (refusal != null) {
+            return refusal;
+        }
+        int currentAmount = bounty.reward().amount();
+        int cost = extendCost(bounty);
+        RewardItem costItem = bounty.reward().withAmount(cost);
         if (!ItemUtil.removeSimilar(creator, costItem)) {
             return ExtendResult.error("extend-not-enough-items", Map.of("amount", String.valueOf(cost), "item", bounty.reward().displayName()));
         }

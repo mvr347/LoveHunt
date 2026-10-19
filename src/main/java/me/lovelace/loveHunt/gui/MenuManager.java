@@ -4,21 +4,24 @@ import me.lovelace.loveHunt.api.LoveHuntClans;
 import me.lovelace.loveHunt.config.Heads;
 import me.lovelace.loveHunt.config.Lang;
 import me.lovelace.loveHunt.config.Settings;
+import me.lovelace.loveHunt.gui.LoreBlocks.Click;
 import me.lovelace.loveHunt.model.Bounty;
 import me.lovelace.loveHunt.model.BountyType;
 import me.lovelace.loveHunt.model.CreateSession;
 import me.lovelace.loveHunt.model.HunterRating;
 import me.lovelace.loveHunt.model.ClanOnlineMode;
+import me.lovelace.loveHunt.model.RewardItem;
 import me.lovelace.loveHunt.model.SortMode;
 import me.lovelace.loveHunt.model.TypeFilter;
 import me.lovelace.loveHunt.service.BountyService;
 import me.lovelace.loveHunt.service.InputMode;
 import me.lovelace.loveHunt.service.PlayerInput;
-import me.lovelace.loveHunt.textures.HeadTextures;
+import me.lovelace.loveHunt.service.RatingService;
 import me.lovelace.loveHunt.util.HeadUtil;
+import me.lovelace.loveHunt.util.ItemBuilder;
+import me.lovelace.loveHunt.util.LoreBar;
 import me.lovelace.loveHunt.util.TimeUtil;
 import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.format.TextDecoration;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.OfflinePlayer;
@@ -56,6 +59,9 @@ public final class MenuManager {
 
     private static final String FILTER_HEAD = "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvOGViODFlZjg5MDIzNzk2NTBiYTc5ZjQ1NzIzZDZiOWM4ODgzODhhMDBmYzRlMTkyZjM0NTRmZTE5Mzg4MmVlMSJ9fX0=";
 
+    /** Progress of a rating (0..5) is drawn as a bar of 500 units: 1 rating point = 20 %. */
+    private static final long RATING_BAR_MAX = 500L;
+
     // Header control buttons (sort, type filter, clan/online): "mine" has 2, "all" has 3.
     private static final int[] MINE_CONTROLS = controlSlots(2);
     private static final int[] ALL_CONTROLS = controlSlots(3);
@@ -71,8 +77,16 @@ public final class MenuManager {
     private final Lang lang;
     private final Heads heads;
     private final BountyService bountyService;
+    private final LoreBlocks.Style style;
     private final ConcurrentHashMap<UUID, PlayerInput> inputs = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<UUID, CreateSession> createSessions = new ConcurrentHashMap<>();
+
+    /**
+     * Why an action is unavailable: the chat message key that already explains it, and its placeholders. The same key
+     * gives the {@code Причина:} line of a disabled button.
+     */
+    private record Refusal(String key, Map<String, String> placeholders) {
+    }
 
     public MenuManager(JavaPlugin plugin, Settings settings, Lang lang, Heads heads, BountyService bountyService) {
         this.plugin = plugin;
@@ -80,6 +94,7 @@ public final class MenuManager {
         this.lang = lang;
         this.heads = heads;
         this.bountyService = bountyService;
+        this.style = lang::rawOrNull;
     }
 
     public void openMain(Player player) {
@@ -88,9 +103,11 @@ public final class MenuManager {
         holder.inventory(inventory);
         fill(inventory);
         inventory.setItem(0, statsButton(player));
-        inventory.setItem(MINE_MAIN_BUTTON, button("gui.items.my-bounties", Material.PLAYER_HEAD, "my-bounties-base64", lang.component("gui.main.mine"), lang.components("gui.main.mine-lore", Map.of(), false)));
-        inventory.setItem(ALL_MAIN_BUTTON, button("gui.items.all-bounties", Material.COMPASS, "all-bounties-base64", lang.component("gui.main.all"), lang.components("gui.main.all-lore", Map.of(), false)));
-        inventory.setItem(25, createButton());
+        inventory.setItem(MINE_MAIN_BUTTON, button("gui.items.my-bounties", Material.PLAYER_HEAD, "my-bounties-base64",
+                lang.component("gui.main.mine"), lore("gui.main.mine-lore", Map.of(), left("gui.main.mine-action"))));
+        inventory.setItem(ALL_MAIN_BUTTON, button("gui.items.all-bounties", Material.COMPASS, "all-bounties-base64",
+                lang.component("gui.main.all"), lore("gui.main.all-lore", Map.of(), left("gui.main.all-action"))));
+        inventory.setItem(25, createButton(player));
         inventory.setItem(MAIN_SIZE - 1, closeButton());
         player.openInventory(inventory);
     }
@@ -108,9 +125,9 @@ public final class MenuManager {
         fill(inventory);
         addMineHeader(inventory, sortMode, typeFilter, player);
         placeItems(inventory, holder, bounties, slice, player);
-        addFooter(inventory, slice);
+        addFooter(inventory, slice, player);
         if (bounties.isEmpty()) {
-            inventory.setItem(31, emptyNoticeHead(lang.component("gui.mine.empty"), lang.components("gui.mine.empty-lore", Map.of(), false)));
+            inventory.setItem(31, emptyNoticeHead(lang.component("gui.mine.empty"), lore("gui.mine.empty-lore", Map.of(), List.of())));
         }
         player.openInventory(inventory);
     }
@@ -129,9 +146,9 @@ public final class MenuManager {
         fill(inventory);
         addAllHeader(inventory, sortMode, typeFilter, clanFilter, onlineOnly, player);
         placeItems(inventory, holder, bounties, slice, player);
-        addFooter(inventory, slice);
+        addFooter(inventory, slice, player);
         if (bounties.isEmpty()) {
-            inventory.setItem(31, emptyNoticeHead(lang.component("gui.all.empty"), lang.components("gui.all.empty-lore", Map.of(), false)));
+            inventory.setItem(31, emptyNoticeHead(lang.component("gui.all.empty"), lore("gui.all.empty-lore", Map.of(), List.of())));
         }
         player.openInventory(inventory);
     }
@@ -142,7 +159,7 @@ public final class MenuManager {
         Inventory inventory = Bukkit.createInventory(holder, InventoryType.HOPPER, lang.component("gui.confirm-create-title"));
         holder.inventory(inventory);
         fill(inventory);
-        inventory.setItem(0, confirmButton());
+        inventory.setItem(0, confirmButton("gui.confirm.create-lore", "gui.confirm.create-action"));
         inventory.setItem(2, createSummary(session));
         inventory.setItem(4, cancelActionButton());
         player.openInventory(inventory);
@@ -154,8 +171,8 @@ public final class MenuManager {
         Inventory inventory = Bukkit.createInventory(holder, InventoryType.HOPPER, lang.component("gui.confirm-accept-title"));
         holder.inventory(inventory);
         fill(inventory);
-        inventory.setItem(0, confirmButton());
-        inventory.setItem(2, bountyHead(bounty, player));
+        inventory.setItem(0, confirmButton("gui.confirm.accept-lore", "gui.confirm.accept-action"));
+        inventory.setItem(2, bountyHead(bounty, player, false));
         inventory.setItem(4, cancelActionButton());
         player.openInventory(inventory);
     }
@@ -166,8 +183,8 @@ public final class MenuManager {
         Inventory inventory = Bukkit.createInventory(holder, InventoryType.HOPPER, lang.component("gui.confirm-cancel-title"));
         holder.inventory(inventory);
         fill(inventory);
-        inventory.setItem(0, confirmDeleteButton());
-        inventory.setItem(2, bountyHead(bounty, player));
+        inventory.setItem(0, confirmButton("gui.confirm.delete-lore", "gui.confirm.delete-action"));
+        inventory.setItem(2, bountyHead(bounty, player, false));
         inventory.setItem(4, cancelActionButton());
         player.openInventory(inventory);
     }
@@ -180,20 +197,20 @@ public final class MenuManager {
         Inventory inventory = Bukkit.createInventory(holder, size, lang.component("gui.manage-title"));
         holder.inventory(inventory);
         fill(inventory);
-        inventory.setItem(0, bountyHead(bounty, player));
+        inventory.setItem(MANAGE_TARGET, bountyHead(bounty, player, false));
 
         if (hunters.isEmpty()) {
-            inventory.setItem(13, emptyNoticeHead(lang.component("gui.manage-no-hunters"), lang.components("gui.manage-no-hunters-lore", Map.of(), false)));
+            inventory.setItem(13, emptyNoticeHead(lang.component("gui.manage-no-hunters"), lore("gui.manage-no-hunters-lore", Map.of(), List.of())));
             inventory.setItem(23, cancelOrderButton());
             if (bounty.type() == BountyType.PLAYER || bounty.type() == BountyType.CLAN) {
-                inventory.setItem(24, extendButton(bounty));
+                inventory.setItem(24, extendButton(player, bounty));
             }
             inventory.setItem(25, backButton());
             inventory.setItem(26, closeButton());
         } else {
             inventory.setItem(MANAGE_CANCEL, cancelOrderButton());
             if (bounty.type() == BountyType.PLAYER || bounty.type() == BountyType.CLAN) {
-                inventory.setItem(MANAGE_EXTEND, extendButton(bounty));
+                inventory.setItem(MANAGE_EXTEND, extendButton(player, bounty));
             }
             inventory.setItem(MANAGE_BACK, backButton());
             inventory.setItem(MANAGE_CLOSE, closeButton());
@@ -446,7 +463,7 @@ public final class MenuManager {
         inventory.setItem(ALL_CONTROLS[2], clanOnlineButton(onlyMyClan, onlineOnly, clanFilterAvailable(player)));
     }
 
-    private void addFooter(Inventory inventory, PageSlice slice) {
+    private void addFooter(Inventory inventory, PageSlice slice, Player player) {
         if (slice.totalPages() > 1) {
             if (slice.page() > 0) inventory.setItem(36, prevButton());
             if (slice.page() < slice.totalPages() - 1) inventory.setItem(44, nextButton());
@@ -455,7 +472,7 @@ public final class MenuManager {
         if (footerMat == null || footerMat.isAir()) footerMat = Material.GRAY_STAINED_GLASS_PANE;
         ItemStack footerGlass = named(footerMat, Component.text(" "));
         for (int slot = 45; slot <= 50; slot++) inventory.setItem(slot, footerGlass);
-        inventory.setItem(51, createButton());
+        inventory.setItem(51, createButton(player));
         inventory.setItem(52, backButton());
         inventory.setItem(53, closeButton());
     }
@@ -466,7 +483,7 @@ public final class MenuManager {
             if (itemIndex >= CONTENT_SLOTS.length) break;
             int slot = CONTENT_SLOTS[itemIndex++];
             Bounty bounty = bounties.get(index);
-            inventory.setItem(slot, bountyHead(bounty, viewer));
+            inventory.setItem(slot, bountyHead(bounty, viewer, true));
             holder.bountySlots().put(slot, bounty.id());
         }
     }
@@ -566,48 +583,100 @@ public final class MenuManager {
         }
     }
 
-    private ItemStack createButton() {
-        return button("gui.items.create-bounty", Material.WRITABLE_BOOK, "create-bounty-base64", lang.component("gui.create"), lang.components("gui.create-lore", Map.of(), false));
+    // ---- Lore helpers -------------------------------------------------------------------------------------------
+
+    /** Lang lines of {@code loreKey} (placeholders filled in) followed by the {@code tail} lines, each parsed as MiniMessage. */
+    private List<Component> lore(String loreKey, Map<String, String> placeholders, List<String> tail) {
+        List<String> lines = new ArrayList<>(lang.rawLines(loreKey, placeholders));
+        lines.addAll(tail);
+        return toComponents(lines);
+    }
+
+    private List<Component> toComponents(List<String> lines) {
+        return lines.stream().map(lang::mini).toList();
+    }
+
+    /** One left-click line that performs {@code actionKey} (its text comes from lang). */
+    private List<String> left(String actionKey) {
+        return LoreBlocks.clicks(style, LoreBlocks.hint(Click.LEFT, lang.raw(actionKey, Map.of())));
+    }
+
+    private static String statusFor(String messageKey) {
+        return switch (messageKey) {
+            case "create-blocked", "accept-blocked" -> "locked";
+            case "creator-limit", "extend-max-duration" -> "max";
+            default -> "unavailable";
+        };
+    }
+
+    /** The chat text of a refusal as one {@code Причина:} line: plain, without the final full stop, MiniMessage-safe. */
+    private String reasonOf(Refusal refusal) {
+        String text = lang.plainText(refusal.key(), refusal.placeholders());
+        if (text.endsWith(".")) text = text.substring(0, text.length() - 1);
+        return lang.escape(text);
+    }
+
+    /**
+     * Action button. Available: its lore plus the left-click line. Refused: the same lore, then the blocked block
+     * (status, {@code Причина:}, blocked click) and the name {@code Имя | Недоступно}; the click itself is unchanged.
+     */
+    private ItemStack actionButton(String path, Material fallback, String headKey, String nameKey, String loreKey, String actionKey,
+                                   Map<String, String> placeholders, Refusal refusal) {
+        String action = lang.raw(actionKey, Map.of());
+        if (refusal == null) {
+            return button(path, fallback, headKey, lang.component(nameKey, placeholders, false),
+                    lore(loreKey, placeholders, LoreBlocks.clicks(style, LoreBlocks.hint(Click.LEFT, action))));
+        }
+        Component name = lang.mini(LoreBlocks.disabledName(style, lang.plainText(nameKey, placeholders)));
+        return button(path, fallback, headKey, name, lore(loreKey, placeholders,
+                LoreBlocks.blocked(style, statusFor(refusal.key()), reasonOf(refusal), LoreBlocks.hint(Click.LEFT, action))));
+    }
+
+    // ---- Buttons ------------------------------------------------------------------------------------------------
+
+    private ItemStack createButton(Player player) {
+        return actionButton("gui.items.create-bounty", Material.WRITABLE_BOOK, "create-bounty-base64",
+                "gui.create", "gui.create-lore", "gui.create-action", Map.of(), createRefusal(player));
     }
 
     private ItemStack prevButton() {
-        return button("gui.items.previous", Material.ARROW, "previous-base64", lang.component("gui.all.previous"), lang.components("gui.all.previous-lore", Map.of(), false));
+        return button("gui.items.previous", Material.ARROW, "previous-base64", lang.component("gui.all.previous"), List.of());
     }
 
     private ItemStack nextButton() {
-        return button("gui.items.next", Material.ARROW, "next-base64", lang.component("gui.all.next"), lang.components("gui.all.next-lore", Map.of(), false));
+        return button("gui.items.next", Material.ARROW, "next-base64", lang.component("gui.all.next"), List.of());
     }
 
-    private ItemStack confirmButton() {
-        return button("gui.items.confirm", Material.LIME_CONCRETE, "confirm-base64", lang.component("gui.confirm.confirm"), lang.components("gui.confirm.confirm-lore", Map.of(), false));
-    }
-
-    private ItemStack confirmDeleteButton() {
-        return button("gui.items.confirm", Material.LIME_CONCRETE, "confirm-base64", lang.component("gui.confirm.confirm"), lang.components("gui.confirm.confirm-delete-lore", Map.of(), false));
+    private ItemStack confirmButton(String loreKey, String actionKey) {
+        return button("gui.items.confirm", Material.LIME_CONCRETE, "confirm-base64", lang.component("gui.confirm.confirm"),
+                lore(loreKey, Map.of(), left(actionKey)));
     }
 
     private ItemStack cancelActionButton() {
-        return button("gui.items.cancel", Material.RED_CONCRETE, "close-base64", lang.component("gui.confirm.cancel"), lang.components("gui.confirm.cancel-lore", Map.of(), false));
+        return button("gui.items.cancel", Material.RED_CONCRETE, "close-base64", lang.component("gui.confirm.cancel"),
+                lore("gui.confirm.cancel-lore", Map.of(), List.of()));
     }
 
     private ItemStack cancelOrderButton() {
-        return button("gui.items.cancel-order", Material.RED_CONCRETE, "cancel-order-base64", lang.component("gui.confirm.cancel-order"), lang.components("gui.confirm.cancel-order-lore", Map.of(), false));
+        return button("gui.items.cancel-order", Material.RED_CONCRETE, "cancel-order-base64", lang.component("gui.confirm.cancel-order"),
+                lore("gui.confirm.cancel-order-lore", Map.of(), left("gui.confirm.cancel-order-action")));
     }
 
+    /** Navigation buttons carry no lore by design (GUI_LORE_STYLE, section 14). */
     private ItemStack backButton() {
-        return button("gui.items.back", Material.ARROW, "back-base64", lang.component("gui.back"), lang.components("gui.back-lore", Map.of(), false));
+        return button("gui.items.back", Material.ARROW, "back-base64", lang.component("gui.back"), List.of());
     }
 
     private ItemStack closeButton() {
-        return button("gui.items.close", Material.BARRIER, "close-base64", lang.component("gui.close"), lang.components("gui.close-lore", Map.of(), false));
+        return button("gui.items.close", Material.BARRIER, "close-base64", lang.component("gui.close"), List.of());
     }
 
-    // Members-menu style switches: fixed name, lore lists every option with the current one marked, then the
-    // LMB/RMB hint. Option labels live in gui.switch.<switch>.options.<option>; Lang falls back to the bundled lang.yml for
-    // servers whose file predates these keys.
+    // Members-menu style switches: the name shows the current option, the lore lists every option with the current one
+    // marked, then the LMB/RMB lines. Option labels live in gui.switch.<switch>.options.<option>; Lang falls back to the
+    // bundled lang.yml for servers whose file predates these keys.
     private ItemStack sortButton(SortMode sortMode) {
         return button("gui.items.sort", Material.HOPPER, "sort-base64",
-                lang.component("gui.switch.sort.name"),
+                switchName("sort", sortMode),
                 switchLore("sort", sortMode, java.util.Arrays.asList(SortMode.values())));
     }
 
@@ -615,77 +684,92 @@ public final class MenuManager {
         // Default skin is built in, so servers whose already-generated heads.yml predates this key still get the head.
         String texture = heads != null ? heads.base64("type-filter-base64", FILTER_HEAD) : FILTER_HEAD;
         return buttonWithTexture("gui.items.type-filter", Material.NAME_TAG, texture,
-                lang.component("gui.switch.type.name"),
+                switchName("type", typeFilter),
                 switchLore("type", typeFilter, java.util.Arrays.asList(TypeFilter.values())));
     }
 
     private ItemStack clanOnlineButton(boolean onlyMyClan, boolean onlineOnly, boolean hasClan) {
         List<ClanOnlineMode> options = java.util.Arrays.stream(ClanOnlineMode.values())
                 .filter(mode -> mode.availableFor(hasClan)).toList();
+        ClanOnlineMode current = ClanOnlineMode.of(onlyMyClan, onlineOnly);
         return button("gui.items.clan-filter", Material.SHIELD, "clan-filter-base64",
-                lang.component("gui.switch.clan-online.name"),
-                switchLore("clan-online", ClanOnlineMode.of(onlyMyClan, onlineOnly), options));
+                switchName("clan-online", current),
+                switchLore("clan-online", current, options));
+    }
+
+    private <E extends Enum<E>> String optionLabel(String switchKey, E option) {
+        return lang.plainMini("gui.switch." + switchKey + ".options." + option.name().toLowerCase(Locale.ROOT).replace('_', '-'));
+    }
+
+    private <E extends Enum<E>> Component switchName(String switchKey, E current) {
+        return lang.component("gui.switch." + switchKey + ".name", lang.placeholders("current", optionLabel(switchKey, current)), false);
     }
 
     private <E extends Enum<E>> List<Component> switchLore(String switchKey, E current, List<E> options) {
-        List<Component> lore = new ArrayList<>();
+        List<String> lines = new ArrayList<>();
+        lines.add(lang.raw("gui.switch.subtitle", Map.of()));
+        lines.add("");
+        lines.add(lang.raw("gui.switch.options-title", Map.of()));
         for (E option : options) {
-            String label = lang.plainMini("gui.switch." + switchKey + ".options." + option.name().toLowerCase(Locale.ROOT).replace('_', '-'));
-            String line = option == current ? "<green>▶ " + label : "<gray>  " + label;
-            lore.add(lang.mini(line).decoration(TextDecoration.ITALIC, false));
+            String key = option == current ? "gui.switch.option-current" : "gui.switch.option-other";
+            lines.add(lang.raw(key, lang.placeholders("name", optionLabel(switchKey, option))));
         }
-        lore.add(Component.empty());
-        lore.addAll(lang.components("gui.switch.hint", Map.of(), false).stream()
-                .map(c -> c.decoration(TextDecoration.ITALIC, false)).toList());
-        return lore;
+        lines.addAll(LoreBlocks.clicks(style,
+                LoreBlocks.hint(Click.LEFT, lang.raw("gui.switch.next", Map.of())),
+                LoreBlocks.hint(Click.RIGHT, lang.raw("gui.switch.previous", Map.of()))));
+        return toComponents(lines);
     }
 
-    private ItemStack extendButton(Bounty bounty) {
-        boolean clan = bounty.type() == BountyType.CLAN;
-        int costPercent = clan ? settings.clanExtendCostPercent() : settings.playerExtendCostPercent();
-        // Same formula as BountyService#extend, so the lore shows exactly what will be charged.
-        int cost = Math.max(1, (int) Math.ceil(bounty.reward().amount() * (costPercent / 100.0)));
-        Map<String, String> placeholders = lang.placeholders("amount", String.valueOf(cost), "item", bounty.reward().displayName());
-        return button("gui.items.extend", Material.CLOCK, "extend-base64",
-                lang.component("gui.manage-extend"),
-                lang.components("gui.manage-extend-hint", placeholders, false));
+    private ItemStack extendButton(Player player, Bounty bounty) {
+        Map<String, String> placeholders = lang.placeholders("amount", String.valueOf(bountyService.extendCost(bounty)),
+                "item", rewardName(bounty.reward()));
+        return actionButton("gui.items.extend", Material.CLOCK, "extend-base64", "gui.manage-extend", "gui.manage-extend-lore",
+                "gui.manage-extend-action", placeholders, extendBlock(player, bounty));
     }
 
     private ItemStack emptyNoticeHead(Component name, List<Component> lore) {
         ItemStack item = named(Material.GRAY_DYE, name);
         ItemMeta meta = item.getItemMeta();
         if (meta != null) {
-            meta.lore(lore);
+            ItemBuilder.apply(meta, null, lore);
             item.setItemMeta(meta);
         }
         return item;
     }
+
+    // ---- Heads --------------------------------------------------------------------------------------------------
 
     private ItemStack statsButton(Player player) {
         HunterRating rating = bountyService.ratings().get(player.getUniqueId());
         ItemStack head = HeadUtil.playerHead(player);
         ItemMeta meta = head.getItemMeta();
         if (meta != null) {
-            meta.displayName(lang.legacy("§e" + player.getName()).decoration(TextDecoration.ITALIC, false));
-            meta.lore(List.of(
-                    lang.legacy("§7Ранг: §6" + rating.rankName() + " §e" + rating.rankStars()),
-                    lang.legacy("§7Рейтинг: §e" + String.format(Locale.ROOT, "%.1f", rating.rating()) + " / 5.0"),
-                    lang.legacy("§7Выполнено: §a" + rating.completed()),
-                    lang.legacy("§7Провалено: §c" + rating.failed()),
-                    lang.legacy(""),
-                    lang.legacy(rewardModifierLine(rating))
-            ));
+            Map<String, String> placeholders = new HashMap<>(ratingPlaceholders(rating));
+            placeholders.put("player", player.getName());
+            ItemBuilder.apply(meta, lang.component("gui.stats", placeholders, false), lore("gui.stats-lore", placeholders, List.of()));
             meta.addItemFlags(ItemFlag.values());
             head.setItemMeta(meta);
         }
         return head;
     }
 
-    private String rewardModifierLine(HunterRating rating) {
+    /** Placeholders shared by the rating blocks of the stats head and the hunter heads. */
+    private Map<String, String> ratingPlaceholders(HunterRating rating) {
+        return lang.placeholders(
+                "rank", rating.rankName(),
+                "stars", rating.rankStars(),
+                "rating", String.format(Locale.ROOT, "%.1f", rating.rating()),
+                "bar", LoreBar.bar(Math.round(rating.rating() * 100), RATING_BAR_MAX),
+                "completed", String.valueOf(rating.completed()),
+                "failed", String.valueOf(rating.failed()),
+                "bonus", bonusLine(rating));
+    }
+
+    private String bonusLine(HunterRating rating) {
         int percent = (int) Math.round(bountyService.ratings().rewardModifierFraction(rating.rating()) * 100.0);
-        if (percent > 0) return "§7Награда: §a+" + percent + "% §7за ранг";
-        if (percent < 0) return "§7Награда: §c" + percent + "% §7за низкий рейтинг";
-        return "§7Награда: §fбез надбавки";
+        if (percent > 0) return lang.raw("gui.stats-bonus-up", lang.placeholders("percent", String.valueOf(percent)));
+        if (percent < 0) return lang.raw("gui.stats-bonus-down", lang.placeholders("percent", String.valueOf(percent)));
+        return lang.raw("gui.stats-bonus-none", Map.of());
     }
 
     private ItemStack hunterHead(UUID hunterUuid) {
@@ -695,49 +779,59 @@ public final class MenuManager {
         ItemMeta meta = head.getItemMeta();
         if (meta != null) {
             String name = hunter.getName() == null ? hunterUuid.toString() : hunter.getName();
-            meta.displayName(lang.legacy("§e" + name).decoration(TextDecoration.ITALIC, false));
-            meta.lore(List.of(
-                    lang.legacy("§7Онлайн: " + (hunter.isOnline() ? "§aДа" : "§cНет")),
-                    lang.legacy("§7Ранг: §6" + rating.rankName() + " §e" + rating.rankStars()),
-                    lang.legacy("§7Рейтинг: §e" + String.format(Locale.ROOT, "%.1f", rating.rating()) + " / 5.0"),
-                    lang.legacy("§7Выполнено: §a" + rating.completed()),
-                    lang.legacy("§7Провалено: §c" + rating.failed())
-            ));
+            Map<String, String> placeholders = new HashMap<>(ratingPlaceholders(rating));
+            placeholders.put("name", name);
+            placeholders.put("state", lang.raw(hunter.isOnline() ? "gui.hunter-state-online" : "gui.hunter-state-offline", Map.of()));
+            ItemBuilder.apply(meta, lang.component("gui.hunter", placeholders, false), lore("gui.hunter-lore", placeholders, List.of()));
             meta.addItemFlags(ItemFlag.values());
             head.setItemMeta(meta);
         }
         return head;
     }
 
-    private ItemStack bountyHead(Bounty bounty, Player viewer) {
+    /**
+     * Bounty head. {@code listed} heads are entries of a list: they carry the click (manage own, accept other) or the
+     * blocked block when accepting is refused. Heads in confirm and manage screens only inform and carry no click.
+     */
+    private ItemStack bountyHead(Bounty bounty, Player viewer, boolean listed) {
         OfflinePlayer target = bounty.targetUuid() != null ? Bukkit.getOfflinePlayer(bounty.targetUuid()) : null;
-        ItemStack head = target != null ? HeadUtil.playerHead(target) : named(Material.SKELETON_SKULL, lang.legacy("§c?").decoration(TextDecoration.ITALIC, false));
+        ItemStack head = target != null ? HeadUtil.playerHead(target) : named(Material.SKELETON_SKULL, lang.mini("<red>?"));
         ItemMeta meta = head.getItemMeta();
         if (meta != null) {
             String targetName = bounty.targetName() != null ? bounty.targetName() : "?";
-            meta.displayName(lang.legacy("§c" + targetName).decoration(TextDecoration.ITALIC, false));
-            List<Component> lore = new ArrayList<>();
-            lore.add(lang.legacy("§7Тип: §f" + bounty.type().name()));
-            if (bounty.reward() != null) {
-                String rewardName = bounty.reward().displayName();
-                if (rewardName != null && rewardName.contains("%img_")) {
-                    lore.add(lang.legacy("§7Награда: §f" + bounty.reward().amount() + " §f" + rewardName));
+            Map<String, String> placeholders = bountyPlaceholders(bounty, targetName);
+            Component name = lang.component("gui.bounty", placeholders, false);
+            List<String> lines = new ArrayList<>(lang.rawLines("gui.bounty-lore", placeholders));
+            if (listed) {
+                boolean own = viewer != null && bounty.creatorUuid() != null && bounty.creatorUuid().equals(viewer.getUniqueId());
+                if (own) {
+                    lines.addAll(left("gui.bounty-action-manage"));
                 } else {
-                    lore.add(lang.legacy("§7Награда: §a" + bounty.reward().amount() + " §7" + rewardName));
+                    Refusal refusal = viewer == null ? null : acceptRefusal(viewer, bounty);
+                    if (refusal == null) {
+                        lines.addAll(left("gui.bounty-action-accept"));
+                    } else {
+                        name = lang.mini(LoreBlocks.disabledName(style, lang.escape(targetName)));
+                        lines.addAll(LoreBlocks.blocked(style, statusFor(refusal.key()), reasonOf(refusal),
+                                LoreBlocks.hint(Click.LEFT, lang.raw("gui.bounty-action-accept", Map.of()))));
+                    }
                 }
             }
-            lore.add(lang.legacy("§7Истекает: §e" + TimeUtil.compact(Math.max(0, bounty.expiresAt() - System.currentTimeMillis()))));
-            lore.add(lang.legacy("§8§m─────────────────────"));
-            if (viewer != null && bounty.creatorUuid() != null && bounty.creatorUuid().equals(viewer.getUniqueId())) {
-                lore.add(lang.legacy("§aЛКМ §8— §7управление заказом"));
-            } else {
-                lore.add(lang.legacy("§aЛКМ §8— §7принять заказ"));
-            }
-            meta.lore(lore);
+            ItemBuilder.apply(meta, name, toComponents(lines));
             meta.addItemFlags(ItemFlag.values());
             head.setItemMeta(meta);
         }
         return head;
+    }
+
+    private Map<String, String> bountyPlaceholders(Bounty bounty, String targetName) {
+        RewardItem reward = bounty.reward();
+        return lang.placeholders(
+                "target", targetName,
+                "type", lang.plainMini("gui.bounty-type." + bounty.type().name().toLowerCase(Locale.ROOT)),
+                "amount", reward == null ? "0" : String.valueOf(reward.amount()),
+                "item", rewardName(reward),
+                "time", TimeUtil.compact(Math.max(0, bounty.expiresAt() - System.currentTimeMillis())));
     }
 
     private ItemStack createSummary(CreateSession session) {
@@ -745,21 +839,49 @@ public final class MenuManager {
         ItemStack head = HeadUtil.playerHead(target);
         ItemMeta meta = head.getItemMeta();
         if (meta != null) {
-            meta.displayName(lang.legacy("§e" + session.targetName()).decoration(TextDecoration.ITALIC, false));
-            String rewardName = session.reward().displayName();
-            String rewardLine = (rewardName != null && rewardName.contains("%img_"))
-                    ? "§7Награда: §f" + session.reward().amount() + " §f" + rewardName
-                    : "§7Награда: §a" + session.reward().amount() + " §7" + rewardName;
-            meta.lore(List.of(
-                    lang.legacy(rewardLine),
-                    lang.legacy("§8§m─────────────────────"),
-                    lang.legacy("§aЛКМ §8— §7подтвердить создание")
-            ));
+            Map<String, String> placeholders = lang.placeholders(
+                    "target", session.targetName(),
+                    "amount", String.valueOf(session.reward().amount()),
+                    "item", rewardName(session.reward()));
+            ItemBuilder.apply(meta, lang.component("gui.create-summary", placeholders, false),
+                    lore("gui.create-summary-lore", placeholders, List.of()));
             meta.addItemFlags(ItemFlag.values());
             head.setItemMeta(meta);
         }
         return head;
     }
+
+    // ---- Refusals -----------------------------------------------------------------------------------------------
+
+    /** Same gates as {@link BountyService#validateCreation}, checked before the player is asked for a target. */
+    private Refusal createRefusal(Player player) {
+        if (bountyService.ratings().isCreateBlocked(player.getUniqueId())) {
+            return new Refusal("create-blocked", Map.of());
+        }
+        int limit = settings.maxActiveByPlayer();
+        if (bountyService.byCreator(player.getUniqueId()).size() >= limit) {
+            return new Refusal("creator-limit", lang.placeholders("limit", String.valueOf(limit)));
+        }
+        return null;
+    }
+
+    /** Same gates as {@link BountyService#accept}, for the hunter who would click the bounty head. */
+    private Refusal acceptRefusal(Player hunter, Bounty bounty) {
+        RatingService ratings = bountyService.ratings();
+        UUID uuid = hunter.getUniqueId();
+        if (ratings.isAcceptBlocked(uuid)) return new Refusal("accept-blocked", Map.of());
+        if (ratings.isRatingTooLowToAccept(uuid)) return new Refusal("rating-too-low", Map.of());
+        if (bountyService.isFrozen(bounty)) return new Refusal("bounty-frozen", Map.of());
+        if (bountyService.hasAccepted(uuid, bounty.id())) return new Refusal("already-accepted", Map.of());
+        return null;
+    }
+
+    private Refusal extendBlock(Player player, Bounty bounty) {
+        BountyService.ExtendResult result = bountyService.extendRefusal(player, bounty);
+        return result == null ? null : new Refusal(result.messageKey(), result.placeholders());
+    }
+
+    // ---- Item plumbing ------------------------------------------------------------------------------------------
 
     private ItemStack button(String path, Material fallback, String headKey, Component name, List<Component> lore) {
         return buttonWithTexture(path, fallback, heads != null ? heads.base64(headKey) : null, name, lore);
@@ -775,8 +897,7 @@ public final class MenuManager {
         }
         ItemMeta meta = item.getItemMeta();
         if (meta != null) {
-            meta.displayName(name.decoration(TextDecoration.ITALIC, false));
-            if (lore != null && !lore.isEmpty()) meta.lore(lore);
+            ItemBuilder.apply(meta, name, lore);
             meta.addItemFlags(ItemFlag.values());
             item.setItemMeta(meta);
         }
@@ -787,11 +908,19 @@ public final class MenuManager {
         ItemStack item = new ItemStack(material);
         ItemMeta meta = item.getItemMeta();
         if (meta != null) {
-            meta.displayName(name.decoration(TextDecoration.ITALIC, false));
+            ItemBuilder.apply(meta, name, null);
             meta.addItemFlags(ItemFlag.values());
             item.setItemMeta(meta);
         }
         return item;
+    }
+
+    private static String rewardName(RewardItem reward) {
+        return reward == null || reward.displayName() == null ? "" : reward.displayName();
+    }
+
+    private static String rewardName(Bounty bounty) {
+        return rewardName(bounty.reward());
     }
 
     private Material configMaterial(String path, Material fallback) {
