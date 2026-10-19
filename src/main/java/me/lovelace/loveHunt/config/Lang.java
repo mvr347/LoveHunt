@@ -4,6 +4,7 @@ import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.event.ClickEvent;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
+import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.command.CommandSender;
 import me.lovelace.loveHunt.util.Notify;
 import org.bukkit.configuration.file.YamlConfiguration;
@@ -124,6 +125,34 @@ public final class Lang {
     /** Raw MiniMessage string of {@code key} (bundled default, then the key itself when missing). */
     public String plainMini(String key) {
         return lang.getString(key, key);
+    }
+
+    /** Raw MiniMessage text of {@code key} with placeholders filled in, not parsed (lore mixes it with LoreBlocks lines). */
+    public String raw(String key, Map<String, String> placeholders) {
+        return apply(lang.getString(key, key), placeholders);
+    }
+
+    /** Raw lines of {@code key}: the list when the key is a list, otherwise its single text. Placeholders filled in. */
+    public List<String> rawLines(String key, Map<String, String> placeholders) {
+        if (lang.isList(key)) {
+            return lang.getStringList(key).stream().map(line -> apply(line, placeholders)).toList();
+        }
+        return List.of(raw(key, placeholders));
+    }
+
+    /** Raw text of {@code key} or null when it is not in lang.yml (lets LoreBlocks use its own built-in default). */
+    public String rawOrNull(String key) {
+        return lang.getString(key);
+    }
+
+    /** Plain text (no colours, no prefix) of a chat message, for a reason line inside lore. */
+    public String plainText(String key, Map<String, String> placeholders) {
+        return PlainTextComponentSerializer.plainText().serialize(component(key, placeholders, false));
+    }
+
+    /** Escapes MiniMessage tags in text that is put into a MiniMessage string as it is. */
+    public String escape(String text) {
+        return miniMessage.escapeTags(text);
     }
 
     public Component mini(String raw) {

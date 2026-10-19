@@ -121,6 +121,27 @@ admin-help-npc: "<aqua>/lovehuntadmin npc <bind|unbind></aqua> <gray>- Прив�
 admin-help-gui: "<aqua>/lovehuntadmin gui open <игрок></aqua> <gray>- Открыть главное меню розыска игроку</gray>"
 admin-help-footer: "<dark_gray>=========================================</dark_gray>"
 
+# 2026-10-19: общие куски лора (стандарт GUI_LORE_STYLE). LoreBlocks собирает из них разделитель, строки кликов и блок
+# неактивной кнопки; цвета по ролям: ЛКМ зелёный, ПКМ золотой, Shift+... жёлтый, красный - только для нехватки и запретов.
+# Текст правится здесь, а не в коде. Значения по умолчанию зашиты в LoreBlocks и совпадают с этим файлом (LoreBlocksTest).
+style:
+  separator: "<dark_gray><st>─────────────────────</st>"
+  click:
+    left: "<green>ЛКМ <dark_gray>— <gray>{action}"
+    right: "<gold>ПКМ <dark_gray>— <gray>{action}"
+    shift-left: "<yellow>Shift+ЛКМ <dark_gray>— <gray>{action}"
+    shift-right: "<yellow>Shift+ПКМ <dark_gray>— <gray>{action}"
+  # Неактивная кнопка: разделитель, статус, "Причина:", заблокированный клик - именно в таком порядке.
+  reason: "<red>Причина: <gray>{reason}"
+  blocked-click: "<dark_gray>{click} — {action} (заблокировано)"
+  disabled-name: "<gray>{name} <dark_gray>| <red>Недоступно"
+  status:
+    unavailable: "<red>✕ Действие недоступно"
+    locked: "<red>✕ Действие заблокировано"
+    cooldown: "<yellow>⌛ Перезарядка"
+    # Единственное место, где в лоре допустим знак ✔: достигнут предел.
+    max: "<green>✔ Достигнут предел"
+
 gui:
   main-title: "<gold>Главное меню"
   mine-title: "<gold>Мои розыски"
