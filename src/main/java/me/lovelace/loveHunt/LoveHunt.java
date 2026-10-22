@@ -10,11 +10,11 @@ import me.lovelace.loveHunt.database.DatabaseManager;
 import me.lovelace.loveHunt.gui.MenuManager;
 import me.lovelace.loveHunt.listener.BountyDeathListener;
 import me.lovelace.loveHunt.listener.ChatInputListener;
-import me.lovelace.loveHunt.listener.CitizensTurnInListener;
+import me.lovelace.loveHunt.listener.NpcTurnInListener;
 import me.lovelace.loveHunt.listener.MenuListener;
 import me.lovelace.loveHunt.listener.PendingRewardListener;
 import me.lovelace.loveHunt.service.BountyService;
-import me.lovelace.loveHunt.service.CitizensIntegration;
+import me.lovelace.loveHunt.service.NpcIntegration;
 import me.lovelace.loveHunt.service.CompassService;
 import me.lovelace.loveHunt.service.LoveHuntPapiExpansion;
 import me.lovelace.loveHunt.service.NoopClansProvider;
@@ -44,7 +44,7 @@ public final class LoveHunt extends JavaPlugin {
     private DatabaseManager database;
     private BountyService bountyService;
     private RatingService ratingService;
-    private CitizensIntegration citizensIntegration;
+    private NpcIntegration npcIntegration;
     private CompassService compassService;
     private BukkitTask autosaveTask;
     private BukkitTask expirationTask;
@@ -69,7 +69,7 @@ public final class LoveHunt extends JavaPlugin {
         bountyService = new BountyService(this, settings, lang, database, clans, ratingService);
         MenuManager menuManager = new MenuManager(this, settings, lang, heads, bountyService);
         compassService = new CompassService(this, settings, bountyService);
-        citizensIntegration = new CitizensIntegration();
+        npcIntegration = NpcIntegration.viaLoveCore(settings::npcProviderId, getLogger());
 
         LoveHuntAPI api = new LoveHuntAPIImpl(bountyService);
         Bukkit.getServicesManager().register(LoveHuntAPI.class, api, this, ServicePriority.Normal);
@@ -82,7 +82,14 @@ public final class LoveHunt extends JavaPlugin {
         Bukkit.getPluginManager().registerEvents(new ChatInputListener(this, menuManager), this);
         Bukkit.getPluginManager().registerEvents(new BountyDeathListener(bountyService, lang), this);
         Bukkit.getPluginManager().registerEvents(new PendingRewardListener(bountyService), this);
-        Bukkit.getPluginManager().registerEvents(new CitizensTurnInListener(settings, lang, bountyService, citizensIntegration, menuManager), this);
+        Bukkit.getPluginManager().registerEvents(new NpcTurnInListener(settings, lang, bountyService, menuManager), this);
+
+        // Providers register late (LoveCore/LoveEssential/Citizens enable after us), so check on the first tick.
+        Bukkit.getScheduler().runTask(this, () -> {
+            if (!settings.turnInNpcKey().isEmpty()) {
+                npcIntegration.provider(); // logs one warning if the configured provider is missing
+            }
+        });
 
         database.initialize()
                 .thenCompose(ignored -> bountyService.load())
@@ -140,7 +147,7 @@ public final class LoveHunt extends JavaPlugin {
         hunts.setExecutor(executor);
         hunts.setTabCompleter(executor);
 
-        LoveHuntAdminCommand adminExecutor = new LoveHuntAdminCommand(settings, lang, bountyService, citizensIntegration, menuManager);
+        LoveHuntAdminCommand adminExecutor = new LoveHuntAdminCommand(settings, lang, bountyService, npcIntegration, menuManager);
         PluginCommand adminCommand = getCommand("lovehuntadmin");
         if (adminCommand == null) {
             throw new IllegalStateException("Command lovehuntadmin is not defined in plugin.yml");
@@ -207,7 +214,7 @@ public final class LoveHunt extends JavaPlugin {
         return ratingService;
     }
 
-    public CitizensIntegration citizensIntegration() {
-        return citizensIntegration;
+    public NpcIntegration npcIntegration() {
+        return npcIntegration;
     }
 }

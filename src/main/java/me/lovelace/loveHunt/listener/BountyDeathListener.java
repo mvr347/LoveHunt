@@ -30,7 +30,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * "hunter" friend by suiciding to split the reward with zero risk.
  *
  * <p>The bounty itself is not completed instantly on kill - the hunter must carry the tagged head
- * to the turn-in NPC (see {@link me.lovelace.loveHunt.service.CitizensTurnInListener}) to
+ * to the turn-in NPC (see {@link me.lovelace.loveHunt.listener.NpcTurnInListener}) to
  * actually claim it.
  */
 public final class BountyDeathListener implements Listener {

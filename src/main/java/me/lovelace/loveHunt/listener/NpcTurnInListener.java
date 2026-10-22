@@ -1,22 +1,21 @@
 package me.lovelace.loveHunt.listener;
 
 import dev.lovelace.lovecore.api.LoveCore;
+import dev.lovelace.lovecore.api.npc.NpcClick;
+import dev.lovelace.lovecore.api.npc.NpcClickEvent;
+import dev.lovelace.lovecore.api.npc.NpcHandle;
 import dev.lovelace.lovecore.api.social.BehaviorLevels;
 import me.lovelace.loveHunt.LoveHunt;
 import me.lovelace.loveHunt.config.Lang;
+import me.lovelace.loveHunt.config.NpcBindingConfig;
 import me.lovelace.loveHunt.config.Settings;
 import me.lovelace.loveHunt.gui.MenuManager;
 import me.lovelace.loveHunt.model.Bounty;
 import me.lovelace.loveHunt.service.BountyService;
-import me.lovelace.loveHunt.service.CitizensIntegration;
-import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
-import org.bukkit.event.entity.EntityDamageByEntityEvent;
-import org.bukkit.event.player.PlayerInteractEntityEvent;
-import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
@@ -29,33 +28,26 @@ import java.util.Random;
  *   <li>Нет принятых контрактов — ПКМ и ЛКМ открывают главное GUI.</li>
  *   <li>Есть принятые — ПКМ открывает GUI; ЛКМ сдаёт трофей (голову цели), если она есть.</li>
  * </ul>
- * Слушает обычные Bukkit-события (не Citizens API), чтобы регистрация была безопасна
- * без Citizens; все lookups идут через {@link CitizensIntegration}.
+ * Слушает {@link NpcClickEvent} из LoveCore; событие приходит от КАЖДОГО провайдера, поэтому клики
+ * чужого провайдера (не из {@code integrations.npc-provider}) игнорируются.
  */
-public final class CitizensTurnInListener implements Listener {
+public final class NpcTurnInListener implements Listener {
     private final Settings settings;
     private final Lang lang;
     private final BountyService bountyService;
-    private final CitizensIntegration citizens;
     private final MenuManager menuManager;
     private final Random random = new Random();
 
-    public CitizensTurnInListener(Settings settings, Lang lang, BountyService bountyService,
-                                  CitizensIntegration citizens, MenuManager menuManager) {
+    public NpcTurnInListener(Settings settings, Lang lang, BountyService bountyService, MenuManager menuManager) {
         this.settings = settings;
         this.lang = lang;
         this.bountyService = bountyService;
-        this.citizens = citizens;
         this.menuManager = menuManager;
     }
 
-    /** ПКМ по NPC — всегда открыть главное GUI охоты. */
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
-    public void onRightClick(PlayerInteractEntityEvent event) {
-        if (event.getHand() != EquipmentSlot.HAND) {
-            return;
-        }
-        if (!isBoundNpc(event.getRightClicked())) {
+    public void onNpcClick(NpcClickEvent event) {
+        if (!isBoundNpc(event.npc())) {
             return;
         }
         event.setCancelled(true);
@@ -64,27 +56,12 @@ public final class CitizensTurnInListener implements Listener {
             lang.send(player, "not-ready");
             return;
         }
-        menuManager.openMain(player);
-    }
-
-    /**
-     * ЛКМ / удар по NPC:
-     * без принятых контрактов — открыть GUI;
-     * с принятыми — попытка сдать трофей (голову цели).
-     */
-    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
-    public void onLeftClick(EntityDamageByEntityEvent event) {
-        if (!(event.getDamager() instanceof Player player)) {
+        if (event.click() == NpcClick.RIGHT) {
+            // ПКМ по NPC — всегда открыть главное GUI охоты.
+            menuManager.openMain(player);
             return;
         }
-        if (!isBoundNpc(event.getEntity())) {
-            return;
-        }
-        event.setCancelled(true);
-        if (!bountyService.isReady()) {
-            lang.send(player, "not-ready");
-            return;
-        }
+        // ЛКМ: без принятых контрактов — открыть GUI; с принятыми — попытка сдать трофей.
         if (bountyService.acceptedBy(player.getUniqueId()).isEmpty()) {
             menuManager.openMain(player);
             return;
@@ -92,12 +69,9 @@ public final class CitizensTurnInListener implements Listener {
         tryTurnIn(player);
     }
 
-    private boolean isBoundNpc(Entity entity) {
-        if (settings.turnInNpcId() < 0 || !citizens.isAvailable()) {
-            return false;
-        }
-        Integer npcId = citizens.npcId(entity);
-        return npcId != null && npcId == settings.turnInNpcId();
+    private boolean isBoundNpc(NpcHandle npc) {
+        return npc != null && NpcBindingConfig.isBound(settings.npcProviderId(), settings.turnInNpcKey(),
+                npc.providerId(), npc.key());
     }
 
     private void tryTurnIn(Player player) {

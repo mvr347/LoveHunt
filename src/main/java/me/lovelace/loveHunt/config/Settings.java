@@ -58,8 +58,9 @@ public final class Settings {
     private int clanBaseDurationHours;
     private int clanExtendCostPercent;
     private int clanMaxDurationDays;
-    private int turnInNpcId;
-    private String turnInNpcName;
+    private String npcProviderId = NpcBindingConfig.DEFAULT_PROVIDER;
+    private String turnInNpcKey = "";
+    private String turnInNpcName = "";
 
     private boolean serverBountyDynamicPricingEnabled;
     private final Map<Integer, Double> playstyleRewardMultipliers = new HashMap<>();
@@ -125,8 +126,7 @@ public final class Settings {
         clanBaseDurationHours = Math.max(1, config.getInt("clan-bounty.base-duration-hours", 168));
         clanExtendCostPercent = Math.max(1, config.getInt("clan-bounty.extend-cost-percent", 7));
         clanMaxDurationDays = Math.max(1, config.getInt("clan-bounty.max-duration-days", 12));
-        turnInNpcId = config.getInt("citizens.turn-in-npc-id", -1);
-        turnInNpcName = config.getString("citizens.turn-in-npc-name", "");
+        loadNpcBinding(config);
 
         serverBountyDynamicPricingEnabled = config.getBoolean("server-bounty.dynamic-pricing.enabled", true);
         loadPlaystyleMultipliers(config);
@@ -403,21 +403,45 @@ public final class Settings {
         return clanMaxDurationDays;
     }
 
-    public int turnInNpcId() {
-        return turnInNpcId;
+    /** NPC provider id from {@code integrations.npc-provider} ("citizens" or "loveessential"). */
+    public String npcProviderId() {
+        return npcProviderId;
+    }
+
+    /** Bound turn-in NPC key as text; empty when unbound. */
+    public String turnInNpcKey() {
+        return turnInNpcKey;
     }
 
     public String turnInNpcName() {
         return turnInNpcName;
     }
 
-    public void setTurnInNpc(int npcId, String npcName) {
-        this.turnInNpcId = npcId;
+    public void setTurnInNpc(String npcKey, String npcName) {
+        this.turnInNpcKey = NpcBindingConfig.normalizeKey(npcKey);
         this.turnInNpcName = npcName == null ? "" : npcName;
         FileConfiguration config = plugin.getConfig();
-        config.set("citizens.turn-in-npc-id", this.turnInNpcId);
-        config.set("citizens.turn-in-npc-name", this.turnInNpcName);
+        config.set(NpcBindingConfig.KEY_PATH, this.turnInNpcKey);
+        config.set(NpcBindingConfig.NAME_PATH, this.turnInNpcName);
         plugin.saveConfig();
+    }
+
+    private void loadNpcBinding(FileConfiguration config) {
+        String rawProvider = config.getString(NpcBindingConfig.PROVIDER_PATH);
+        if (!NpcBindingConfig.isKnownProvider(rawProvider)) {
+            plugin.getLogger().warning("Unknown " + NpcBindingConfig.PROVIDER_PATH + " '" + rawProvider
+                    + "', using '" + NpcBindingConfig.DEFAULT_PROVIDER + "'.");
+        }
+        // Legacy numeric Citizens id -> String key; written back once so the old keys disappear.
+        if (NpcBindingConfig.migrateLegacy(config)) {
+            plugin.saveConfig();
+            plugin.getLogger().info("Migrated the turn-in NPC binding from citizens.turn-in-npc-id to "
+                    + NpcBindingConfig.KEY_PATH + ".");
+        }
+        NpcBindingConfig binding = NpcBindingConfig.read(config);
+        npcProviderId = binding.providerId();
+        turnInNpcKey = binding.key();
+        turnInNpcName = binding.name();
     }
 
     /** Money key (number or "15i" text) with the LoveCore price index; plain default if LoveCore is missing. */

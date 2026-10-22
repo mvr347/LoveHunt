@@ -1,12 +1,13 @@
 package me.lovelace.loveHunt.command;
 
+import dev.lovelace.lovecore.api.npc.NpcHandle;
 import me.lovelace.loveHunt.config.Lang;
 import me.lovelace.loveHunt.config.Settings;
 import me.lovelace.loveHunt.gui.MenuManager;
 import me.lovelace.loveHunt.model.BountyType;
 import me.lovelace.loveHunt.model.RewardItem;
 import me.lovelace.loveHunt.service.BountyService;
-import me.lovelace.loveHunt.service.CitizensIntegration;
+import me.lovelace.loveHunt.service.NpcIntegration;
 import me.lovelace.loveHunt.util.ItemUtil;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
@@ -15,7 +16,6 @@ import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.TabCompleter;
-import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.jetbrains.annotations.NotNull;
@@ -23,6 +23,7 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -46,15 +47,15 @@ public final class LoveHuntAdminCommand implements CommandExecutor, TabCompleter
     private final Settings settings;
     private final Lang lang;
     private final BountyService bountyService;
-    private final CitizensIntegration citizens;
+    private final NpcIntegration npcs;
     private final MenuManager menuManager;
 
     public LoveHuntAdminCommand(Settings settings, Lang lang, BountyService bountyService,
-                                CitizensIntegration citizens, MenuManager menuManager) {
+                                NpcIntegration npcs, MenuManager menuManager) {
         this.settings = settings;
         this.lang = lang;
         this.bountyService = bountyService;
-        this.citizens = citizens;
+        this.npcs = npcs;
         this.menuManager = menuManager;
     }
 
@@ -87,6 +88,7 @@ public final class LoveHuntAdminCommand implements CommandExecutor, TabCompleter
         switch (type) {
             case "config" -> {
                 settings.load();
+                npcs.resetWarnings();
                 lang.send(sender, "reload-success");
             }
             case "message", "messages" -> {
@@ -95,6 +97,7 @@ public final class LoveHuntAdminCommand implements CommandExecutor, TabCompleter
             }
             default -> {
                 settings.load();
+                npcs.resetWarnings();
                 lang.load();
                 lang.send(sender, "reload-success");
             }
@@ -183,26 +186,25 @@ public final class LoveHuntAdminCommand implements CommandExecutor, TabCompleter
             lang.send(sender, "only-player");
             return;
         }
-        if (!citizens.isAvailable()) {
-            lang.send(player, "npc-not-available");
-            return;
-        }
         String sub = args.length > 1 ? args[1].toLowerCase(Locale.ROOT) : "";
         if (sub.equals("unbind")) {
-            settings.setTurnInNpc(-1, "");
+            settings.setTurnInNpc("", "");
             lang.send(player, "npc-unbind-success");
             return;
         }
         if (sub.equals("bind")) {
-            Entity npc = citizens.lookedAtNpc(player, 6.0);
-            if (npc == null) {
+            if (!npcs.isAvailable()) {
+                lang.send(player, "npc-provider-unavailable", lang.placeholders("provider", npcs.providerId()));
+                return;
+            }
+            Optional<NpcHandle> npc = npcs.targeted(player);
+            if (npc.isEmpty()) {
                 lang.send(player, "npc-select-none");
                 return;
             }
-            Integer npcId = citizens.npcId(npc);
-            String npcName = citizens.npcName(npc);
-            settings.setTurnInNpc(npcId == null ? -1 : npcId, npcName == null ? "" : npcName);
-            lang.send(player, "npc-bind-success", lang.placeholders("name", npcName == null ? "?" : npcName));
+            String npcName = npc.get().name();
+            settings.setTurnInNpc(npc.get().key(), npcName);
+            lang.send(player, "npc-bind-success", lang.placeholders("name", npcName == null || npcName.isEmpty() ? "?" : npcName));
             return;
         }
         lang.send(player, "npc-not-bound");

@@ -105,10 +105,21 @@ offline:
   # (minus economy.offline-delete-penalty-percent) to the creator.
   delete-days: 5
 
-citizens:
-  # Bound via /lovehuntadmin npc bind (look at the NPC first). -1 means unbound.
-  turn-in-npc-id: -1
-  turn-in-npc-name: ""
+# 2026-10-22: чьим API пользоваться для NPC сдатчика трофеев: citizens | loveessential.
+# По умолчанию citizens - у действующих серверов NPC уже стоят в Citizens, и поведение не меняется.
+# Нужен LoveCore (он поднимает адаптер Citizens) либо LoveEssential. Если выбранный провайдер не найден,
+# в лог пишется одно предупреждение, а сдача трофеев через NPC отключается - плагин не падает.
+# Привязка хранится для выбранного провайдера: сменили провайдера - привяжите NPC заново.
+integrations:
+  npc-provider: citizens
+
+# 2026-10-22: привязка NPC теперь строковый ключ (раньше число citizens.turn-in-npc-id): у Citizens это
+# числовой id, записанный текстом, у LoveEssential - его собственный id (ext-xxxxxxxx). Старые
+# citizens.turn-in-npc-id / turn-in-npc-name читаются и сами переносятся сюда при загрузке.
+# Задаётся командой /lovehuntadmin npc bind (смотрите на NPC). Пусто = не привязан.
+npc:
+  turn-in-key: ""
+  turn-in-name: ""
 
 # "Живые" реакции сдатчика трофеев на реальные вежливость/стиль игры охотника (LoveBehavior).
 # reject по умолчанию выключен: сдатчик трофеев тематически не должен отказывать буйным
