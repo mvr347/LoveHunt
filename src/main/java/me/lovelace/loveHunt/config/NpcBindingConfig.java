@@ -1,5 +1,7 @@
 package me.lovelace.loveHunt.config;
 
+import dev.lovelace.lovecore.api.LoveCore;
+import dev.lovelace.lovecore.api.provider.ProviderKind;
 import org.bukkit.configuration.ConfigurationSection;
 
 import java.util.Locale;
@@ -20,15 +22,31 @@ public record NpcBindingConfig(String providerId, String key, String name) {
     public static final String LEGACY_ID_PATH = "citizens.turn-in-npc-id";
     public static final String LEGACY_NAME_PATH = "citizens.turn-in-npc-name";
 
-    /** Whether the raw config value names a provider this plugin knows (null/blank counts as the default). */
-    public static boolean isKnownProvider(String raw) {
-        return raw == null || raw.isBlank() || KNOWN_PROVIDERS.contains(raw.trim().toLowerCase(Locale.ROOT));
+    /** Config value that follows {@code integrations.provider} of LoveCore. */
+    public static final String GLOBAL = "global";
+
+    /** True for an absent, blank or {@code global} value: the provider is then the global choice of LoveCore. */
+    public static boolean followsGlobal(String raw) {
+        return raw == null || raw.isBlank() || GLOBAL.equalsIgnoreCase(raw.trim());
     }
 
-    /** Provider id from config; anything unknown falls back to {@link #DEFAULT_PROVIDER}. */
+    /** Whether the raw config value names a provider this plugin knows (null, blank and {@code global} count as known). */
+    public static boolean isKnownProvider(String raw) {
+        return followsGlobal(raw) || KNOWN_PROVIDERS.contains(raw.trim().toLowerCase(Locale.ROOT));
+    }
+
+    /**
+     * Provider id from config. {@code global}, absent or blank follows {@code integrations.provider} of LoveCore
+     * (without LoveCore: {@link #DEFAULT_PROVIDER}); a known id wins; anything unknown falls back to
+     * {@link #DEFAULT_PROVIDER}. Read when the settings are loaded, so a change needs {@code /lovehunt reload}.
+     */
     public static String resolveProviderId(String raw) {
-        if (raw == null) {
-            return DEFAULT_PROVIDER;
+        if (followsGlobal(raw)) {
+            try {
+                return LoveCore.providerId(ProviderKind.NPC, GLOBAL);
+            } catch (LinkageError coreMissingOrOld) {
+                return DEFAULT_PROVIDER;
+            }
         }
         String id = raw.trim().toLowerCase(Locale.ROOT);
         return KNOWN_PROVIDERS.contains(id) ? id : DEFAULT_PROVIDER;
