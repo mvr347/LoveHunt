@@ -26,6 +26,15 @@ class NpcBindingConfigTest {
     }
 
     @Test
+    void globalFollowsTheCoreAndWithoutItMeansCitizens() {
+        assertEquals("citizens", NpcBindingConfig.resolveProviderId("global"));
+        assertEquals("citizens", NpcBindingConfig.resolveProviderId(" GLOBAL "));
+        assertTrue(NpcBindingConfig.isKnownProvider("global"));
+        assertTrue(NpcBindingConfig.followsGlobal(null));
+        assertFalse(NpcBindingConfig.followsGlobal("citizens"));
+    }
+
+    @Test
     void normalizeKeyHandlesNumbersAndText() {
         assertEquals("", NpcBindingConfig.normalizeKey(null));
         assertEquals("", NpcBindingConfig.normalizeKey(-1));

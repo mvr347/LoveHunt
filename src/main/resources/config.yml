@@ -106,12 +106,16 @@ offline:
   delete-days: 5
 
 # 2026-10-22: чьим API пользоваться для NPC сдатчика трофеев: citizens | loveessential.
-# По умолчанию citizens - у действующих серверов NPC уже стоят в Citizens, и поведение не меняется.
 # Нужен LoveCore (он поднимает адаптер Citizens) либо LoveEssential. Если выбранный провайдер не найден,
 # в лог пишется одно предупреждение, а сдача трофеев через NPC отключается - плагин не падает.
 # Привязка хранится для выбранного провайдера: сменили провайдера - привяжите NPC заново.
+# 2026-10-23: значение global (по умолчанию) следует общему переключателю integrations.provider в config.yml
+# LoveCore: external - Citizens, loveessential - LoveEssential, один выбор сразу для всех плагинов. Пока в
+# ядре стоит external, поведение прежнее (citizens). Явное citizens или loveessential перекрывает общий
+# выбор. Выбор читается при загрузке настроек: после смены нужен /lovehunt reload. Уже сохранённое на
+# сервере `citizens` остаётся явным: чтобы следовать ядру, замените его на `global`.
 integrations:
-  npc-provider: citizens
+  npc-provider: global
 
 # 2026-10-22: привязка NPC теперь строковый ключ (раньше число citizens.turn-in-npc-id): у Citizens это
 # числовой id, записанный текстом, у LoveEssential - его собственный id (ext-xxxxxxxx). Старые

@@ -41,7 +41,7 @@ plugin:
 
 # NPC Охотника
 integrations:
-  npc-provider: citizens            # citizens | loveessential
+  npc-provider: global              # global (как в integrations.provider LoveCore) | citizens | loveessential
 npc:
   turn-in-key: ""                   # ключ NPC (текст), пусто = не привязан; ставится /lovehuntadmin npc bind
   turn-in-name: ""
@@ -100,7 +100,7 @@ hunts:
 
 ### NPC (Citizens / LoveEssential)
 
-NPC-Охотник, через которого выдаются и принимаются охоты (клик по NPC). Провайдер NPC выбирается `integrations.npc-provider` (`citizens` или `loveessential`), работает через LoveCore (`NpcProvider`/`NpcClickEvent`). Привязка — `/lovehuntadmin npc bind` на NPC, на которого смотрите.
+NPC-Охотник, через которого выдаются и принимаются охоты (клик по NPC). Провайдер NPC выбирается `integrations.npc-provider` (`global` - как решено в `integrations.provider` LoveCore, `citizens` или `loveessential`), работает через LoveCore (`NpcProvider`/`NpcClickEvent`). Привязка — `/lovehuntadmin npc bind` на NPC, на которого смотрите.
 
 ### PlaceholderAPI
 
