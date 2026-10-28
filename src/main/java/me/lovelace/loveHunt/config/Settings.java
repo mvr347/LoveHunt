@@ -71,6 +71,18 @@ public final class Settings {
     private double npcDialogueAmbientChance;
 
     private boolean hunterPlaystyleBonusEnabled;
+    private boolean passEnabled;
+    private long passPrice;
+    private int passMinPolitenessLevel;
+    private int passMaxPlaystyleLevel;
+    private int[] passLevelThresholds;
+    private double[] passTaxRates;
+    private int passDecayDays;
+    private int passResetDays;
+    private int passPlaystyleShift;
+    private int passSpeedLevel;
+    private int passStrengthLevel;
+    private double passExtraHealth;
     private int hunterPlaystyleAggressiveThreshold;
     private double hunterPlaystyleAggressiveBonusPercent;
     private double hunterPlaystyleKindPenaltyPercent;
@@ -140,6 +152,18 @@ public final class Settings {
         npcDialogueAmbientChance = config.getDouble("npc-dialogue.ambient.chance", 0.35);
 
         hunterPlaystyleBonusEnabled = config.getBoolean("hunter-reward.playstyle-bonus.enabled", true);
+        passEnabled = config.getBoolean("hunter-pass.enabled", true);
+        passPrice = Math.max(0L, readMoney(config, "hunter-pass.price", 6_000L));
+        passMinPolitenessLevel = Math.max(0, Math.min(6, config.getInt("hunter-pass.min-politeness-level", 2)));
+        passMaxPlaystyleLevel = Math.max(0, Math.min(6, config.getInt("hunter-pass.max-playstyle-level-to-buy", 3)));
+        passLevelThresholds = intList(config.getIntegerList("hunter-pass.level-thresholds"), new int[]{0, 3, 8, 15, 25});
+        passTaxRates = percentList(config.getDoubleList("hunter-pass.tax-percent-by-level"), new double[]{0.20, 0.16, 0.12, 0.08, 0.04});
+        passDecayDays = Math.max(1, config.getInt("hunter-pass.level-decay-days", 2));
+        passResetDays = Math.max(passDecayDays, config.getInt("hunter-pass.reset-days", 5));
+        passPlaystyleShift = config.getInt("hunter-pass.playstyle-shift-per-bounty", -60);
+        passSpeedLevel = Math.max(0, config.getInt("hunter-pass.buffs.speed-level", 1));
+        passStrengthLevel = Math.max(0, config.getInt("hunter-pass.buffs.strength-level", 1));
+        passExtraHealth = Math.max(0.0, config.getDouble("hunter-pass.buffs.extra-health", 2.0));
         hunterPlaystyleAggressiveThreshold = config.getInt("hunter-reward.playstyle-bonus.aggressive-threshold", 0);
         hunterPlaystyleAggressiveBonusPercent = config.getDouble("hunter-reward.playstyle-bonus.aggressive-bonus-percent", 20.0) / 100.0;
         hunterPlaystyleKindPenaltyPercent = config.getDouble("hunter-reward.playstyle-bonus.kind-penalty-percent", 20.0) / 100.0;
@@ -343,6 +367,21 @@ public final class Settings {
         return serverEscalationCapPercent;
     }
 
+    public boolean passEnabled() { return passEnabled; }
+    public long passPrice() { return passPrice; }
+    public int passMinPolitenessLevel() { return passMinPolitenessLevel; }
+    public int passMaxPlaystyleLevelToBuy() { return passMaxPlaystyleLevel; }
+    public int[] passLevelThresholds() { return passLevelThresholds.clone(); }
+    public double[] passTaxRates() { return passTaxRates.clone(); }
+    public int passMaxLevel() { return passLevelThresholds.length; }
+    public long passDecayMillis() { return java.time.Duration.ofDays(passDecayDays).toMillis(); }
+    public long passResetMillis() { return java.time.Duration.ofDays(passResetDays).toMillis(); }
+    public int passResetDays() { return passResetDays; }
+    public int passPlaystyleShift() { return passPlaystyleShift; }
+    public int passSpeedLevel() { return passSpeedLevel; }
+    public int passStrengthLevel() { return passStrengthLevel; }
+    public double passExtraHealth() { return passExtraHealth; }
+
     public boolean hunterPlaystyleBonusEnabled() {
         return hunterPlaystyleBonusEnabled;
     }
@@ -442,6 +481,20 @@ public final class Settings {
         npcProviderId = binding.providerId();
         turnInNpcKey = binding.key();
         turnInNpcName = binding.name();
+    }
+
+    private static int[] intList(java.util.List<Integer> values, int[] fallback) {
+        if (values == null || values.isEmpty()) return fallback;
+        int[] out = new int[values.size()];
+        for (int i = 0; i < out.length; i++) out[i] = Math.max(0, values.get(i));
+        return out;
+    }
+
+    private static double[] percentList(java.util.List<Double> values, double[] fallback) {
+        if (values == null || values.isEmpty()) return fallback;
+        double[] out = new double[values.size()];
+        for (int i = 0; i < out.length; i++) out[i] = Math.max(0.0, Math.min(1.0, values.get(i) / 100.0));
+        return out;
     }
 
     /** Money key (number or "15i" text) with the LoveCore price index; plain default if LoveCore is missing. */

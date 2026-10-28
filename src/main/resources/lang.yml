@@ -181,6 +181,36 @@ gui:
       - "<dark_gray>▪ <gray>Что здесь:"
       - "  <gray>Созданные вами розыски и их статус"
     mine-action: "открыть"
+  # 2026-10-28: билет охотника. Деньги в тексте белые (стандарт оформления лора), налог и уровень показываются сразу.
+  pass:
+    buy: "<gold>Билет охотника"
+    buy-lore:
+      - "<dark_gray>Пропуск в гильдию"
+      - ""
+      - "<dark_gray>▪ <gray>Что даёт:"
+      - "  <gray>Право брать заказы на охоту"
+      - "  <gray>Скорость I, Сила I и <white>+1</white> сердце навсегда"
+      - "  <gray>Налог с награды <white>{tax}%</white>, ниже с уровнем"
+      - ""
+      - "<dark_gray>▪ <gray>Цена: <white>{price}</white>"
+    buy-action: "купить билет"
+    mine: "<gold>Мой билет <dark_gray>| <yellow>{level} ур."
+    mine-lore:
+      - "<dark_gray>Билет охотника"
+      - ""
+      - "<dark_gray>▪ <gray>Уровень: <white>{level}/{max}</white>"
+      - "<dark_gray>▪ <gray>Налог с награды: <white>{tax}%</white>"
+      - "<dark_gray>▪ <gray>До следующего уровня: <white>{completed}/{next}</white>"
+      - "  {bar}"
+      - ""
+      - "<dark_gray>▪ <gray>Без заказов {reset} дн. билет сгорит"
+    mine-lore-max:
+      - "<dark_gray>Билет охотника"
+      - ""
+      - "<dark_gray>▪ <gray>Уровень: <white>{level}/{max}</white> <gray>(максимум)"
+      - "<dark_gray>▪ <gray>Налог с награды: <white>{tax}%</white>"
+      - ""
+      - "<dark_gray>▪ <gray>Без заказов {reset} дн. билет сгорит"
   # Header switches in the members-menu style (LMB next, RMB previous). The name shows the current option.
   switch:
     subtitle: "<dark_gray>Переключатель"
@@ -333,3 +363,26 @@ gui:
     - ""
     - "<dark_gray>▪ <gray>Профиль:"
     - "  <gray>Награда: <white>{amount} <white>{item}"
+
+# 2026-10-28: билет охотника
+pass:
+  item-name: "<gold>Билет охотника"
+  item-lore:
+    - "<gray>Правая кнопка мыши — стать охотником."
+    - "<dark_gray>Носить с собой не нужно: билет применяется."
+pass-bought: "<green>Билет охотника куплен. Нажмите ПКМ с ним в руке."
+pass-activated: "<green>Вы стали охотником. Скорость, сила и ещё одно сердце теперь с вами."
+pass-disabled: "<red>Билеты охотника сейчас не продаются."
+pass-already-hunter: "<yellow>Вы уже охотник."
+pass-politeness-low: "<red>Вежливость слишком низкая для билета охотника."
+pass-playstyle-too-peaceful: "<red>Охотником становятся те, кто готов к бою: ваш стиль игры слишком мирный."
+pass-no-economy: "<red>Экономика недоступна, билет купить нельзя."
+pass-not-enough-money: "<red>Не хватает монет: билет стоит {price}."
+pass-revoked-politeness: "<red>Билет охотника отозван: вежливость упала слишком низко."
+pass-revoked-inactive: "<red>Вы давно не брали заказы, билет охотника сгорел."
+pass-level-up: "<green>Билет охотника: уровень {level}. Налог с награды теперь {tax}%."
+pass-level-down: "<yellow>Вы давно не брали заказы, уровень билета снижен до {level}."
+accept-no-pass: "<red>Брать заказы могут только охотники: купите билет у NPC."
+create-no-hunters: "<red>Сейчас на сервере нет ни одного охотника, заказ создать нельзя."
+reward-not-coin: "<red>Награда должна быть монетами: возьмите монеты в руку."
+reward-given-coins: "<green>Вы получили <white>{amount}</white> {currency} <gray>(налог {tax}% от {gross})</gray>."

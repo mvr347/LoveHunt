@@ -49,6 +49,7 @@ public final class MenuManager {
     private static final int MAIN_SIZE = 27;
     private static final int MINE_MAIN_BUTTON = 11;
     private static final int ALL_MAIN_BUTTON = 15;
+    private static final int PASS_BUTTON = 13;
 
     private static final int MANAGE_SIZE = 54;
     private static final int MANAGE_TARGET = 0;
@@ -107,6 +108,7 @@ public final class MenuManager {
                 lang.component("gui.main.mine"), lore("gui.main.mine-lore", Map.of(), left("gui.main.mine-action"))));
         inventory.setItem(ALL_MAIN_BUTTON, button("gui.items.all-bounties", Material.COMPASS, "all-bounties-base64",
                 lang.component("gui.main.all"), lore("gui.main.all-lore", Map.of(), left("gui.main.all-action"))));
+        inventory.setItem(PASS_BUTTON, passButton(player));
         inventory.setItem(25, createButton(player));
         inventory.setItem(MAIN_SIZE - 1, closeButton());
         player.openInventory(inventory);
@@ -291,6 +293,7 @@ public final class MenuManager {
     private void handleMain(Player player, int slot) {
         if (slot == MINE_MAIN_BUTTON) openMine(player, 0, SortMode.DATE, TypeFilter.ALL, null);
         else if (slot == ALL_MAIN_BUTTON) openAll(player, 0, SortMode.DATE, TypeFilter.ALL, false, false, null);
+        else if (slot == PASS_BUTTON) buyPass(player);
         else if (slot == 25) beginCreate(player);
         else if (slot == MAIN_SIZE - 1) player.closeInventory();
     }
@@ -637,6 +640,44 @@ public final class MenuManager {
     private ItemStack createButton(Player player) {
         return actionButton("gui.items.create-bounty", Material.WRITABLE_BOOK, "create-bounty-base64",
                 "gui.create", "gui.create-lore", "gui.create-action", Map.of(), createRefusal(player));
+    }
+
+    /** Pass card: buy button for non-hunters, an info card (level, tax, progress) for owners; hidden when the pass is off. */
+    private ItemStack passButton(Player player) {
+        var hunters = bountyService.hunters();
+        if (hunters == null || !hunters.enabled()) return null;
+        var hunter = hunters.get(player.getUniqueId());
+        if (hunter != null) {
+            int[] thresholds = settings.passLevelThresholds();
+            int level = hunter.level();
+            boolean max = level >= thresholds.length;
+            Map<String, String> placeholders = lang.placeholders(
+                    "level", level, "max", thresholds.length,
+                    "tax", Math.round(me.lovelace.loveHunt.service.HunterRules.taxFor(level, settings.passTaxRates()) * 100),
+                    "completed", hunter.completed(),
+                    "next", max ? hunter.completed() : thresholds[level],
+                    "bar", LoreBar.bar(max ? 1 : hunter.completed(), max ? 1 : Math.max(1, thresholds[level])),
+                    "reset", settings.passResetDays());
+            return button("gui.items.pass", Material.PAPER, "pass-base64", lang.component("gui.pass.mine", placeholders, false),
+                    lore(max ? "gui.pass.mine-lore-max" : "gui.pass.mine-lore", placeholders, List.of()));
+        }
+        var refusal = hunters.purchaseRefusal(player);
+        Map<String, String> placeholders = lang.placeholders("price", settings.passPrice(),
+                "tax", Math.round(me.lovelace.loveHunt.service.HunterRules.taxFor(1, settings.passTaxRates()) * 100));
+        return actionButton("gui.items.pass", Material.PAPER, "pass-base64", "gui.pass.buy", "gui.pass.buy-lore",
+                "gui.pass.buy-action", placeholders, refusal == null ? null : new Refusal(refusal.key(), refusal.placeholders()));
+    }
+
+    private void buyPass(Player player) {
+        var hunters = bountyService.hunters();
+        if (hunters == null || !hunters.enabled() || hunters.get(player.getUniqueId()) != null) return;
+        var refusal = hunters.buy(player);
+        if (refusal != null) {
+            lang.notice(player, refusal.key(), refusal.placeholders());
+        } else {
+            lang.important(player, "pass-bought");
+        }
+        openMain(player);
     }
 
     private ItemStack prevButton() {
