@@ -13,7 +13,9 @@ import me.lovelace.loveHunt.listener.ChatInputListener;
 import me.lovelace.loveHunt.listener.NpcTurnInListener;
 import me.lovelace.loveHunt.listener.MenuListener;
 import me.lovelace.loveHunt.listener.PendingRewardListener;
+import me.lovelace.loveHunt.listener.HunterPassListener;
 import me.lovelace.loveHunt.service.BountyService;
+import me.lovelace.loveHunt.service.HunterService;
 import me.lovelace.loveHunt.service.NpcIntegration;
 import me.lovelace.loveHunt.service.CompassService;
 import me.lovelace.loveHunt.service.LoveHuntPapiExpansion;
@@ -43,6 +45,8 @@ public final class LoveHunt extends JavaPlugin {
     private Heads heads;
     private DatabaseManager database;
     private BountyService bountyService;
+    private HunterService hunterService;
+    private BukkitTask hunterTask;
     private RatingService ratingService;
     private NpcIntegration npcIntegration;
     private CompassService compassService;
@@ -67,6 +71,8 @@ public final class LoveHunt extends JavaPlugin {
         LoveHuntClans clans = resolveClansProvider();
         ratingService = new RatingService(this, settings, database);
         bountyService = new BountyService(this, settings, lang, database, clans, ratingService);
+        hunterService = new HunterService(this, settings, lang, database);
+        bountyService.hunters(hunterService);
         MenuManager menuManager = new MenuManager(this, settings, lang, heads, bountyService);
         compassService = new CompassService(this, settings, bountyService);
         npcIntegration = NpcIntegration.viaLoveCore(settings::npcProviderId, getLogger());
@@ -82,6 +88,9 @@ public final class LoveHunt extends JavaPlugin {
         Bukkit.getPluginManager().registerEvents(new ChatInputListener(this, menuManager), this);
         Bukkit.getPluginManager().registerEvents(new BountyDeathListener(bountyService, lang), this);
         Bukkit.getPluginManager().registerEvents(new PendingRewardListener(bountyService), this);
+        Bukkit.getPluginManager().registerEvents(new HunterPassListener(hunterService), this);
+        Bukkit.getServicesManager().register(dev.lovelace.lovecore.api.buff.PassiveBuffSource.class,
+                hunterService.buffSource(), this, ServicePriority.Normal);
         Bukkit.getPluginManager().registerEvents(new NpcTurnInListener(settings, lang, bountyService, menuManager), this);
 
         // Providers register late (LoveCore/LoveEssential/Citizens enable after us), so check on the first tick.
@@ -93,12 +102,14 @@ public final class LoveHunt extends JavaPlugin {
 
         database.initialize()
                 .thenCompose(ignored -> bountyService.load())
+                .thenCompose(ignored -> hunterService.load())
                 .thenRun(() -> Bukkit.getScheduler().runTask(this, () -> {
                     compassService.start();
                     startAutosave();
                     startExpirationSweep();
                     startOfflineSweep();
                     startCooldownPruneSweep();
+                    startHunterUpkeep();
                 }))
                 .exceptionally(throwable -> {
                     getLogger().log(Level.SEVERE, "Failed to initialize LoveHunt", throwable);
@@ -121,6 +132,9 @@ public final class LoveHunt extends JavaPlugin {
         }
         if (cooldownPruneTask != null) {
             cooldownPruneTask.cancel();
+        }
+        if (hunterTask != null) {
+            hunterTask.cancel();
         }
         if (compassService != null) {
             compassService.stop();
@@ -194,6 +208,15 @@ public final class LoveHunt extends JavaPlugin {
         cooldownPruneTask = Bukkit.getScheduler().runTaskTimer(this, bountyService::pruneCooldowns, period, period);
     }
 
+    /** Every minute: remember whether bounties were open, then check politeness, decay and reset of passes. */
+    private void startHunterUpkeep() {
+        long period = 60L * 20L;
+        hunterTask = Bukkit.getScheduler().runTaskTimer(this, () -> {
+            hunterService.noteOpenBounties(bountyService.hasOpenBounties());
+            hunterService.maintain();
+        }, period, period);
+    }
+
     private void registerPapiExpansion() {
         if (Bukkit.getPluginManager().getPlugin("PlaceholderAPI") == null) {
             return;
@@ -208,6 +231,10 @@ public final class LoveHunt extends JavaPlugin {
 
     public BountyService bountyService() {
         return bountyService;
+    }
+
+    public HunterService hunterService() {
+        return hunterService;
     }
 
     public RatingService ratingService() {

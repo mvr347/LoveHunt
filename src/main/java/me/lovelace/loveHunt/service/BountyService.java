@@ -144,6 +144,21 @@ public final class BountyService {
         return huntersByBounty.getOrDefault(bountyId, Set.of()).size();
     }
 
+    private HunterService passes;
+
+    public void hunters(HunterService passes) {
+        this.passes = passes;
+    }
+
+    public HunterService hunters() {
+        return passes;
+    }
+
+    /** Whether any bounty is open for hunters right now (feeds the pass inactivity rule). */
+    public boolean hasOpenBounties() {
+        return !bountiesById.isEmpty();
+    }
+
     public LoveHuntClans clans() {
         return clans;
     }
@@ -158,6 +173,9 @@ public final class BountyService {
         }
         if (ratingService.isCreateBlocked(creator.getUniqueId())) {
             return CreateCheck.error("create-blocked", Map.of());
+        }
+        if (passes != null && !passes.anyHunters()) {
+            return CreateCheck.error("create-no-hunters", Map.of());
         }
         OfflinePlayer target = Bukkit.getOfflinePlayer(targetName);
         UUID targetUuid = target.getUniqueId();
@@ -269,6 +287,10 @@ public final class BountyService {
         if (ratingService.isAcceptBlocked(hunter.getUniqueId())) {
             return CompletableFuture.completedFuture(false);
         }
+        if (passes != null && !passes.isHunter(hunter.getUniqueId())) {
+            lang.notice(hunter, "accept-no-pass");
+            return CompletableFuture.completedFuture(false);
+        }
         if (ratingService.isRatingTooLowToAccept(hunter.getUniqueId())) {
             lang.notice(hunter, "rating-too-low");
             return CompletableFuture.completedFuture(false);
@@ -313,6 +335,7 @@ public final class BountyService {
                 acceptedByHunter.getOrDefault(hunter.getUniqueId(), Set.of()).remove(bounty.id());
                 return false;
             }
+            if (passes != null) passes.recordAccept(hunter.getUniqueId());
             return true;
         }).exceptionally(throwable -> {
             // A failed persist must never look like a successful accept: roll back the
@@ -369,14 +392,45 @@ public final class BountyService {
         amount = ratingService.applyRewardModifier(amount, rating.rating());
         amount = applyHunterPlaystyleBonus(amount, hunter.getUniqueId());
         RewardItem finalReward = bounty.reward().withAmount(Math.max(1, amount));
+        double taxRate = passes == null ? 0.0 : passes.taxRate(hunter.getUniqueId());
 
         ratingService.recordCompletion(hunter.getUniqueId());
-        giveOrDrop(hunter, finalReward);
-        lang.important(hunter, "reward-given", lang.placeholders("amount", finalReward.amount(), "item", finalReward.displayName()));
+        payOut(hunter, finalReward, taxRate);
+        if (passes != null) passes.recordCompletion(hunter);
         Bukkit.broadcast(lang.component("bounty-completed", lang.placeholders("hunter", hunter.getName(), "target", bounty.targetName()), true));
         Bukkit.getPluginManager().callEvent(new BountyClaimEvent(bounty, hunter));
 
         reportCompletionToCore(hunter.getUniqueId());
+    }
+
+    private static dev.lovelace.lovecore.api.economy.LoveEconomy economy() {
+        return dev.lovelace.lovecore.api.LoveCore.service(dev.lovelace.lovecore.api.economy.LoveEconomy.class).orElse(null);
+    }
+
+    /** Coins are the only accepted reward while the hunter pass is on. */
+    private static boolean isCoin(RewardItem reward) {
+        var economy = economy();
+        return economy != null && economy.valueOf(reward.singlePrototype()) > 0;
+    }
+
+    /**
+     * Pays the hunter after the pass tax. Coin rewards are summed in the smallest unit and handed out
+     * as fresh coins; any other (legacy) item reward is reduced by the same rate.
+     */
+    private void payOut(Player hunter, RewardItem reward, double taxRate) {
+        var economy = economy();
+        long unit = economy == null ? 0L : economy.valueOf(reward.singlePrototype());
+        if (unit > 0) {
+            long gross = unit * reward.amount();
+            long net = HunterRules.afterTax(gross, taxRate);
+            economy.give(hunter, net);
+            lang.important(hunter, "reward-given-coins", lang.placeholders("amount", net, "currency", economy.currencyName(),
+                    "tax", Math.round(taxRate * 100), "gross", gross));
+            return;
+        }
+        RewardItem net = reward.withAmount((int) HunterRules.afterTax(reward.amount(), taxRate));
+        giveOrDrop(hunter, net);
+        lang.important(hunter, "reward-given", lang.placeholders("amount", net.amount(), "item", net.displayName()));
     }
 
     /**
@@ -843,6 +897,9 @@ public final class BountyService {
             reward = new RewardItem(hand.getType(), amount, prototype, ItemUtil.readableName(hand));
         } else {
             reward = settings.defaultReward();
+        }
+        if (passes != null && passes.enabled() && !isCoin(reward)) {
+            return RewardCheck.error("reward-not-coin", Map.of());
         }
         if (reward.amount() < settings.minimumReward().amount()) {
             return RewardCheck.error("reward-too-low", Map.of(

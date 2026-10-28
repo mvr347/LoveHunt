@@ -127,6 +127,14 @@ public final class DatabaseManager {
                         "created_at INTEGER NOT NULL" +
                         ")");
                 statement.execute("CREATE INDEX IF NOT EXISTS idx_pending_rewards_uuid ON pending_rewards(uuid)");
+                statement.execute("CREATE TABLE IF NOT EXISTS hunters (" +
+                        "uuid TEXT PRIMARY KEY," +
+                        "level INTEGER NOT NULL DEFAULT 1," +
+                        "completed INTEGER NOT NULL DEFAULT 0," +
+                        "joined_at INTEGER NOT NULL," +
+                        "last_accept_at INTEGER NOT NULL DEFAULT 0," +
+                        "level_checked_at INTEGER NOT NULL DEFAULT 0" +
+                        ")");
                 addColumnIfMissing(connection, "bounties", "extended_days", "INTEGER NOT NULL DEFAULT 0");
             }
         });
@@ -336,6 +344,52 @@ public final class DatabaseManager {
                 statement.setDouble(2, rating.rating());
                 statement.setInt(3, rating.completed());
                 statement.setInt(4, rating.failed());
+                statement.executeUpdate();
+            }
+        });
+    }
+
+    public CompletableFuture<Map<UUID, me.lovelace.loveHunt.model.Hunter>> loadPassHolders() {
+        return supplyAsync(() -> {
+            Map<UUID, me.lovelace.loveHunt.model.Hunter> hunters = new HashMap<>();
+            try (Connection connection = dataSource.getConnection();
+                 PreparedStatement statement = connection.prepareStatement(
+                         "SELECT uuid, level, completed, joined_at, last_accept_at, level_checked_at FROM hunters");
+                 ResultSet resultSet = statement.executeQuery()) {
+                while (resultSet.next()) {
+                    UUID uuid = uuid(resultSet.getString("uuid"));
+                    hunters.put(uuid, new me.lovelace.loveHunt.model.Hunter(uuid, resultSet.getInt("level"),
+                            resultSet.getInt("completed"), resultSet.getLong("joined_at"),
+                            resultSet.getLong("last_accept_at"), resultSet.getLong("level_checked_at")));
+                }
+            }
+            return hunters;
+        });
+    }
+
+    public CompletableFuture<Void> upsertPassHolder(me.lovelace.loveHunt.model.Hunter hunter) {
+        return runAsync(() -> {
+            try (Connection connection = dataSource.getConnection();
+                 PreparedStatement statement = connection.prepareStatement(
+                         "INSERT INTO hunters(uuid,level,completed,joined_at,last_accept_at,level_checked_at) VALUES(?,?,?,?,?,?) " +
+                                 "ON CONFLICT(uuid) DO UPDATE SET level=excluded.level, completed=excluded.completed, " +
+                                 "joined_at=excluded.joined_at, last_accept_at=excluded.last_accept_at, level_checked_at=excluded.level_checked_at")) {
+                statement.setString(1, hunter.uuid().toString());
+                statement.setInt(2, hunter.level());
+                statement.setInt(3, hunter.completed());
+                statement.setLong(4, hunter.joinedAt());
+                statement.setLong(5, hunter.lastAcceptAt());
+                statement.setLong(6, hunter.levelCheckedAt());
+                statement.executeUpdate();
+            }
+        });
+    }
+
+    public CompletableFuture<Void> deletePassHolder(UUID uuid) {
+        return runAsync(() -> {
+            try (Connection connection = dataSource.getConnection();
+                 PreparedStatement statement = connection.prepareStatement("DELETE FROM hunters WHERE uuid=?")) {
+                statement.setString(1, uuid.toString());
                 statement.executeUpdate();
             }
         });

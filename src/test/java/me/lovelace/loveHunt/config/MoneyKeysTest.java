@@ -24,4 +24,16 @@ class MoneyKeysTest {
         long cost = raw instanceof Number n ? n.longValue() : MoneyParser.parse(String.valueOf(raw), MoneyParser.STANDARD);
         assertEquals(1_500L, cost);
     }
+
+    @Test
+    void hunterPassPriceIsThreeGold() throws Exception {
+        YamlConfiguration cfg;
+        try (Reader r = new InputStreamReader(getClass().getResourceAsStream("/config.yml"), StandardCharsets.UTF_8)) {
+            cfg = YamlConfiguration.loadConfiguration(r);
+        }
+        Object raw = cfg.get("hunter-pass.price");
+        assertNotNull(raw);
+        long price = raw instanceof Number n ? n.longValue() : MoneyParser.parse(String.valueOf(raw), MoneyParser.STANDARD);
+        assertEquals(6_000L, price);
+    }
 }
