@@ -136,6 +136,9 @@ public final class LoveHunt extends JavaPlugin {
         if (hunterTask != null) {
             hunterTask.cancel();
         }
+        if (hunterService != null) {
+            hunterService.saveAll();
+        }
         if (compassService != null) {
             compassService.stop();
         }
@@ -212,8 +215,7 @@ public final class LoveHunt extends JavaPlugin {
     private void startHunterUpkeep() {
         long period = 60L * 20L;
         hunterTask = Bukkit.getScheduler().runTaskTimer(this, () -> {
-            hunterService.noteOpenBounties(bountyService.hasOpenBounties());
-            hunterService.maintain();
+            hunterService.maintain(bountyService.hasOpenBounties());
         }, period, period);
     }
 

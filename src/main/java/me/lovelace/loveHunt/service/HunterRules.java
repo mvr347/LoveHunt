@@ -31,20 +31,22 @@ public final class HunterRules {
     }
 
     /**
-     * The pass is dropped when the hunter took nothing for {@code resetMillis} even though there was
-     * something to take: some bounty was open at or after the hunter's last activity. Idle servers do
-     * not punish anyone.
+     * Idle time to add for one upkeep tick: the time since the previous tick, but only while a bounty was
+     * open, and capped so that a server pause or restart does not count as hunting downtime.
      */
-    public static boolean shouldReset(long now, long activityAt, long resetMillis, long lastOpenBountyAt) {
-        return now - activityAt > resetMillis && lastOpenBountyAt > activityAt;
+    public static long idleDelta(long now, long lastTickAt, boolean bountiesOpen, long capMillis) {
+        if (!bountiesOpen || lastTickAt <= 0L) return 0L;
+        return Math.max(0L, Math.min(now - lastTickAt, capMillis));
     }
 
-    /** Whether a rarely active hunter loses one level now (checked at most once per {@code decayMillis}). */
-    public static boolean shouldDecay(long now, long activityAt, long levelCheckedAt, long decayMillis, int level, long lastOpenBountyAt) {
-        return level > 1
-                && now - activityAt > decayMillis
-                && now - levelCheckedAt > decayMillis
-                && lastOpenBountyAt > activityAt;
+    /** The pass is dropped when the hunter took nothing for {@code resetMillis} of eligible (bounties open) time. */
+    public static boolean shouldReset(long idleMillis, long resetMillis) {
+        return idleMillis >= resetMillis;
+    }
+
+    /** A rarely active hunter loses one level each time {@code decayMillis} of eligible idle time passes. */
+    public static boolean shouldDecay(int level, long levelIdleMillis, long decayMillis) {
+        return level > 1 && levelIdleMillis >= decayMillis;
     }
 
     /** Completed count that matches the start of {@code level}: a decayed hunter restarts the climb from there. */

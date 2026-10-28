@@ -39,8 +39,8 @@ public final class HunterService {
     private final DatabaseManager database;
     private final NamespacedKey ticketKey;
     private final ConcurrentHashMap<UUID, Hunter> hunters = new ConcurrentHashMap<>();
-    /** Last time any bounty was open for hunters; idle servers must not make anyone lose the pass. */
-    private volatile long lastOpenBountyAt;
+    private long lastTickAt;
+    private int ticks;
 
     public HunterService(JavaPlugin plugin, Settings settings, Lang lang, DatabaseManager database) {
         this.plugin = plugin;
@@ -84,10 +84,6 @@ public final class HunterService {
     public double taxRate(UUID uuid) {
         if (!enabled()) return 0.0;
         return HunterRules.taxFor(Math.max(1, level(uuid)), settings.passTaxRates());
-    }
-
-    public void noteOpenBounties(boolean anyOpen) {
-        if (anyOpen) lastOpenBountyAt = System.currentTimeMillis();
     }
 
     // ---- purchase and use ----------------------------------------------------------------------------------------
@@ -165,7 +161,7 @@ public final class HunterService {
     // ---- activity ------------------------------------------------------------------------------------------------
 
     public void recordAccept(UUID uuid) {
-        update(uuid, hunter -> hunter.withAccept(System.currentTimeMillis()));
+        update(uuid, Hunter::withAccept);
     }
 
     /** Counts a completed bounty, may raise the level, and shifts the hunter's playstyle toward aggression. */
@@ -174,8 +170,7 @@ public final class HunterService {
         if (current == null) return;
         int completed = current.completed() + 1;
         int level = Math.max(current.level(), HunterRules.levelFor(completed, settings.passLevelThresholds()));
-        long now = System.currentTimeMillis();
-        Hunter next = new Hunter(current.uuid(), level, completed, current.joinedAt(), now, now);
+        Hunter next = new Hunter(current.uuid(), level, completed, current.joinedAt(), 0L, 0L);
         hunters.put(next.uuid(), next);
         database.upsertPassHolder(next);
         if (level > current.level()) {
@@ -201,30 +196,51 @@ public final class HunterService {
 
     // ---- maintenance ---------------------------------------------------------------------------------------------
 
-    /** Periodic upkeep: politeness check, level decay and the 5-day reset. Main thread. */
-    public void maintain() {
+    /**
+     * Periodic upkeep (once a minute, main thread): counts idle time while bounties are open, then checks
+     * politeness, the 5-day reset and level decay. Time with no open bounties is never counted.
+     */
+    public void maintain(boolean bountiesOpen) {
         if (!enabled()) return;
         long now = System.currentTimeMillis();
+        long delta = HunterRules.idleDelta(now, lastTickAt, bountiesOpen, 5L * 60_000L);
+        lastTickAt = now;
+        boolean persist = ++ticks % 10 == 0;
         BehaviorLevels levels = LoveCore.service(BehaviorLevels.class).orElse(null);
         for (Hunter hunter : List.copyOf(hunters.values())) {
             if (levels != null && levels.politenessLevel(hunter.uuid()) < settings.passMinPolitenessLevel()) {
                 revoke(hunter.uuid(), "pass-revoked-politeness");
                 continue;
             }
-            if (HunterRules.shouldReset(now, hunter.activityAt(), settings.passResetMillis(), lastOpenBountyAt)) {
+            Hunter next = delta == 0L ? hunter : hunter.withIdle(delta);
+            if (HunterRules.shouldReset(next.idleMillis(), settings.passResetMillis())) {
                 revoke(hunter.uuid(), "pass-revoked-inactive");
                 continue;
             }
-            if (HunterRules.shouldDecay(now, hunter.activityAt(), hunter.levelCheckedAt(), settings.passDecayMillis(),
-                    hunter.level(), lastOpenBountyAt)) {
-                int level = hunter.level() - 1;
-                Hunter next = hunter.withLevel(level, HunterRules.completedAtLevelStart(level, settings.passLevelThresholds()), now);
-                hunters.put(next.uuid(), next);
-                database.upsertPassHolder(next);
+            boolean changed = next != hunter;
+            if (HunterRules.shouldDecay(next.level(), next.levelIdleMillis(), settings.passDecayMillis())) {
+                int level = next.level() - 1;
+                next = next.withLevel(level, HunterRules.completedAtLevelStart(level, settings.passLevelThresholds()));
                 Player online = Bukkit.getPlayer(next.uuid());
                 if (online != null) lang.notice(online, "pass-level-down", lang.placeholders("level", level));
+                persist(next);
+                continue;
+            }
+            if (changed) {
+                hunters.put(next.uuid(), next);
+                if (persist) database.upsertPassHolder(next);
             }
         }
+    }
+
+    private void persist(Hunter next) {
+        hunters.put(next.uuid(), next);
+        database.upsertPassHolder(next);
+    }
+
+    /** Writes the in-memory idle counters (not saved every minute); call before shutdown. */
+    public void saveAll() {
+        hunters.values().forEach(database::upsertPassHolder);
     }
 
     public void revoke(UUID uuid, String messageKey) {
@@ -246,7 +262,7 @@ public final class HunterService {
 
             @Override
             public Collection<PotionEffect> effects(Player player) {
-                if (!hunters.containsKey(player.getUniqueId())) return List.of();
+                if (!enabled() || !hunters.containsKey(player.getUniqueId())) return List.of();
                 java.util.ArrayList<PotionEffect> effects = new java.util.ArrayList<>(2);
                 if (settings.passSpeedLevel() > 0)
                     effects.add(new PotionEffect(PotionEffectType.SPEED, 100, settings.passSpeedLevel() - 1, true, false, true));
@@ -257,7 +273,7 @@ public final class HunterService {
 
             @Override
             public Map<Attribute, Double> attributes(Player player) {
-                if (!hunters.containsKey(player.getUniqueId()) || settings.passExtraHealth() <= 0.0) return Map.of();
+                if (!enabled() || !hunters.containsKey(player.getUniqueId()) || settings.passExtraHealth() <= 0.0) return Map.of();
                 return Map.of(Attribute.MAX_HEALTH, settings.passExtraHealth());
             }
         };

@@ -132,8 +132,8 @@ public final class DatabaseManager {
                         "level INTEGER NOT NULL DEFAULT 1," +
                         "completed INTEGER NOT NULL DEFAULT 0," +
                         "joined_at INTEGER NOT NULL," +
-                        "last_accept_at INTEGER NOT NULL DEFAULT 0," +
-                        "level_checked_at INTEGER NOT NULL DEFAULT 0" +
+                        "idle_ms INTEGER NOT NULL DEFAULT 0," +
+                        "level_idle_ms INTEGER NOT NULL DEFAULT 0" +
                         ")");
                 addColumnIfMissing(connection, "bounties", "extended_days", "INTEGER NOT NULL DEFAULT 0");
             }
@@ -354,13 +354,13 @@ public final class DatabaseManager {
             Map<UUID, me.lovelace.loveHunt.model.Hunter> hunters = new HashMap<>();
             try (Connection connection = dataSource.getConnection();
                  PreparedStatement statement = connection.prepareStatement(
-                         "SELECT uuid, level, completed, joined_at, last_accept_at, level_checked_at FROM hunters");
+                         "SELECT uuid, level, completed, joined_at, idle_ms, level_idle_ms FROM hunters");
                  ResultSet resultSet = statement.executeQuery()) {
                 while (resultSet.next()) {
                     UUID uuid = uuid(resultSet.getString("uuid"));
                     hunters.put(uuid, new me.lovelace.loveHunt.model.Hunter(uuid, resultSet.getInt("level"),
                             resultSet.getInt("completed"), resultSet.getLong("joined_at"),
-                            resultSet.getLong("last_accept_at"), resultSet.getLong("level_checked_at")));
+                            resultSet.getLong("idle_ms"), resultSet.getLong("level_idle_ms")));
                 }
             }
             return hunters;
@@ -371,15 +371,15 @@ public final class DatabaseManager {
         return runAsync(() -> {
             try (Connection connection = dataSource.getConnection();
                  PreparedStatement statement = connection.prepareStatement(
-                         "INSERT INTO hunters(uuid,level,completed,joined_at,last_accept_at,level_checked_at) VALUES(?,?,?,?,?,?) " +
+                         "INSERT INTO hunters(uuid,level,completed,joined_at,idle_ms,level_idle_ms) VALUES(?,?,?,?,?,?) " +
                                  "ON CONFLICT(uuid) DO UPDATE SET level=excluded.level, completed=excluded.completed, " +
-                                 "joined_at=excluded.joined_at, last_accept_at=excluded.last_accept_at, level_checked_at=excluded.level_checked_at")) {
+                                 "joined_at=excluded.joined_at, idle_ms=excluded.idle_ms, level_idle_ms=excluded.level_idle_ms")) {
                 statement.setString(1, hunter.uuid().toString());
                 statement.setInt(2, hunter.level());
                 statement.setInt(3, hunter.completed());
                 statement.setLong(4, hunter.joinedAt());
-                statement.setLong(5, hunter.lastAcceptAt());
-                statement.setLong(6, hunter.levelCheckedAt());
+                statement.setLong(5, hunter.idleMillis());
+                statement.setLong(6, hunter.levelIdleMillis());
                 statement.executeUpdate();
             }
         });

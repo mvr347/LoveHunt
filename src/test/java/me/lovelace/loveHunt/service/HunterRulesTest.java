@@ -34,21 +34,25 @@ class HunterRulesTest {
     }
 
     @Test
-    void passResetsOnlyWhenBountiesWereAvailableMeanwhile() {
-        long now = 10 * DAY;
-        long activity = 3 * DAY; // 7 days idle
-        assertTrue(HunterRules.shouldReset(now, activity, 5 * DAY, 8 * DAY));
-        assertFalse(HunterRules.shouldReset(now, activity, 5 * DAY, 2 * DAY), "nothing was open since the last activity");
-        assertFalse(HunterRules.shouldReset(now, 7 * DAY, 5 * DAY, 9 * DAY), "only 3 days idle");
+    void idleTimeCountsOnlyWhileBountiesAreOpen() {
+        long cap = 5 * 60_000L;
+        assertEquals(60_000L, HunterRules.idleDelta(120_000L, 60_000L, true, cap));
+        assertEquals(0L, HunterRules.idleDelta(120_000L, 60_000L, false, cap), "empty server: nothing counts");
+        assertEquals(0L, HunterRules.idleDelta(120_000L, 0L, true, cap), "first tick has no previous tick");
+        assertEquals(cap, HunterRules.idleDelta(10 * DAY, 1_000L, true, cap), "a server pause is capped");
     }
 
     @Test
-    void levelDecaysOncePerWindowAndNeverBelowOne() {
-        long now = 10 * DAY;
-        assertTrue(HunterRules.shouldDecay(now, 6 * DAY, 6 * DAY, 2 * DAY, 3, 9 * DAY));
-        assertFalse(HunterRules.shouldDecay(now, 6 * DAY, 9 * DAY, 2 * DAY, 3, 9 * DAY), "checked again too soon");
-        assertFalse(HunterRules.shouldDecay(now, 6 * DAY, 6 * DAY, 2 * DAY, 1, 9 * DAY), "level 1 cannot drop");
-        assertFalse(HunterRules.shouldDecay(now, 6 * DAY, 6 * DAY, 2 * DAY, 3, 5 * DAY), "no open bounties");
+    void passResetsAfterFiveDaysOfEligibleIdleTime() {
+        assertFalse(HunterRules.shouldReset(5 * DAY - 1, 5 * DAY));
+        assertTrue(HunterRules.shouldReset(5 * DAY, 5 * DAY));
+    }
+
+    @Test
+    void levelDecaysEachWindowOfEligibleIdleTimeAndNeverBelowOne() {
+        assertFalse(HunterRules.shouldDecay(3, 2 * DAY - 1, 2 * DAY));
+        assertTrue(HunterRules.shouldDecay(3, 2 * DAY, 2 * DAY));
+        assertFalse(HunterRules.shouldDecay(1, 9 * DAY, 2 * DAY), "level 1 cannot drop");
     }
 
     @Test
