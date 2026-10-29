@@ -13,6 +13,7 @@ import me.lovelace.loveHunt.listener.ChatInputListener;
 import me.lovelace.loveHunt.listener.NpcTurnInListener;
 import me.lovelace.loveHunt.listener.MenuListener;
 import me.lovelace.loveHunt.listener.PendingRewardListener;
+import me.lovelace.loveHunt.listener.TrophyBindingListener;
 import me.lovelace.loveHunt.listener.HunterPassListener;
 import me.lovelace.loveHunt.service.BountyService;
 import me.lovelace.loveHunt.service.HunterService;
@@ -39,6 +40,10 @@ import java.util.logging.Level;
 public final class LoveHunt extends JavaPlugin {
     public static NamespacedKey TARGET_KEY;
     public static NamespacedKey BOUNTY_KEY;
+    /** Hunter a trophy is bound to (UUID text). */
+    public static NamespacedKey TROPHY_HUNTER_KEY;
+    /** Marks the head handed to the customer; the value is the victim's UUID. LoveShop's Wanderer reads it by name. */
+    public static NamespacedKey HEAD_KEY;
 
     private Settings settings;
     private Lang lang;
@@ -59,6 +64,8 @@ public final class LoveHunt extends JavaPlugin {
     public void onEnable() {
         TARGET_KEY = new NamespacedKey(this, "target_uuid");
         BOUNTY_KEY = new NamespacedKey(this, "bounty_id");
+        TROPHY_HUNTER_KEY = new NamespacedKey(this, "trophy_hunter");
+        HEAD_KEY = new NamespacedKey(this, "delivered_head");
 
         settings = new Settings(this);
         settings.load();
@@ -75,6 +82,7 @@ public final class LoveHunt extends JavaPlugin {
         bountyService.hunters(hunterService);
         MenuManager menuManager = new MenuManager(this, settings, lang, heads, bountyService);
         compassService = new CompassService(this, settings, bountyService);
+        compassService.hunters(hunterService);
         npcIntegration = NpcIntegration.viaLoveCore(settings::npcProviderId, getLogger());
 
         LoveHuntAPI api = new LoveHuntAPIImpl(bountyService);
@@ -88,6 +96,7 @@ public final class LoveHunt extends JavaPlugin {
         Bukkit.getPluginManager().registerEvents(new ChatInputListener(this, menuManager), this);
         Bukkit.getPluginManager().registerEvents(new BountyDeathListener(bountyService, lang), this);
         Bukkit.getPluginManager().registerEvents(new PendingRewardListener(bountyService), this);
+        Bukkit.getPluginManager().registerEvents(new TrophyBindingListener(lang), this);
         Bukkit.getPluginManager().registerEvents(new HunterPassListener(hunterService), this);
         Bukkit.getServicesManager().register(dev.lovelace.lovecore.api.buff.PassiveBuffSource.class,
                 hunterService.buffSource(), this, ServicePriority.Normal);

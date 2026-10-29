@@ -11,6 +11,7 @@ import me.lovelace.loveHunt.model.CreateSession;
 import me.lovelace.loveHunt.model.HunterRating;
 import me.lovelace.loveHunt.model.PendingReward;
 import me.lovelace.loveHunt.model.RewardItem;
+import me.lovelace.loveHunt.util.HeadItems;
 import me.lovelace.loveHunt.util.ItemUtil;
 import me.lovelace.loveHunt.util.TimeUtil;
 import org.bukkit.Bukkit;
@@ -1044,6 +1045,28 @@ public final class BountyService {
         } else {
             database.queuePendingReward(uuid, reward, System.currentTimeMillis());
         }
+    }
+
+    /**
+     * After a hand-in the target's head goes to whoever ordered the hunt: a player order and a clan order (the
+     * member who posted it for the clan) hand it to the creator, who may keep it or sell it to the Wanderer. Server
+     * and admin orders have no customer, so the head is simply consumed. An offline customer gets it on the next join.
+     *
+     * @return whether a head was handed over
+     */
+    public boolean deliverHeadToCustomer(Bounty bounty, Player hunter) {
+        if (bounty == null || bounty.creatorUuid() == null
+                || (bounty.type() != BountyType.PLAYER && bounty.type() != BountyType.CLAN)) {
+            return false;
+        }
+        UUID customer = bounty.creatorUuid();
+        ItemStack head = HeadItems.deliveredHead(lang, Bukkit.getOfflinePlayer(bounty.targetUuid()), bounty.targetName(), bounty.targetUuid());
+        deliverReward(customer, new RewardItem(Material.PLAYER_HEAD, 1, head, bounty.targetName()));
+        Player online = Bukkit.getPlayer(customer);
+        if (online != null) {
+            lang.important(online, "head-delivered", lang.placeholders("target", bounty.targetName(), "hunter", hunter.getName()));
+        }
+        return true;
     }
 
     public void deliverPendingRewards(Player player) {

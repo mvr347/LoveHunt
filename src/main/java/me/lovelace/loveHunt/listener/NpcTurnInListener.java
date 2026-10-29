@@ -98,6 +98,7 @@ public final class NpcTurnInListener implements Listener {
 
         consumeTrophy(player, bountyId);
         bountyService.complete(bounty, player);
+        bountyService.deliverHeadToCustomer(bounty, player);
         lang.important(player, "turnin-success", lang.placeholders("target", bounty.targetName()));
         maybeSayAmbient(player);
     }
