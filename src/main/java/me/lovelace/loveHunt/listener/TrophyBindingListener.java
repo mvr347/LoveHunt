@@ -13,6 +13,7 @@ import org.bukkit.event.inventory.ClickType;
 import org.bukkit.event.inventory.InventoryAction;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryDragEvent;
+import org.bukkit.event.inventory.InventoryPickupItemEvent;
 import org.bukkit.event.inventory.InventoryType;
 import org.bukkit.event.player.PlayerDropItemEvent;
 import org.bukkit.inventory.Inventory;
@@ -54,6 +55,14 @@ public final class TrophyBindingListener implements Listener {
         }
     }
 
+    /** Hoppers and hopper minecarts collect dropped items without any entity pickup event. */
+    @EventHandler(ignoreCancelled = true)
+    public void onInventoryPickup(InventoryPickupItemEvent event) {
+        if (HeadItems.isTrophy(event.getItem().getItemStack())) {
+            event.setCancelled(true);
+        }
+    }
+
     @EventHandler(priority = EventPriority.HIGHEST)
     public void onOwnerDeath(PlayerDeathEvent event) {
         event.getDrops().removeIf(HeadItems::isTrophy);
@@ -61,7 +70,20 @@ public final class TrophyBindingListener implements Listener {
 
     @EventHandler(ignoreCancelled = true)
     public void onClick(InventoryClickEvent event) {
-        if (!(event.getWhoClicked() instanceof Player player) || isOwnView(event.getView().getTopInventory())) {
+        if (!(event.getWhoClicked() instanceof Player player)) {
+            return;
+        }
+        // A bundle would carry the trophy out of reach of every check below, so no trophy goes into one, anywhere.
+        if (bundleMeetsTrophy(event.getCursor(), event.getCurrentItem())
+                || event.getClick() == ClickType.NUMBER_KEY
+                        && bundleMeetsTrophy(player.getInventory().getItem(event.getHotbarButton()), event.getCurrentItem())
+                || event.getClick() == ClickType.SWAP_OFFHAND
+                        && bundleMeetsTrophy(player.getInventory().getItemInOffHand(), event.getCurrentItem())) {
+            event.setCancelled(true);
+            lang.notice(player, "trophy-no-store");
+            return;
+        }
+        if (isOwnView(event.getView().getTopInventory())) {
             return;
         }
         Inventory top = event.getView().getTopInventory();
@@ -96,6 +118,14 @@ public final class TrophyBindingListener implements Listener {
             event.setCancelled(true);
             lang.notice(player, "trophy-no-store");
         }
+    }
+
+    private static boolean bundleMeetsTrophy(ItemStack first, ItemStack second) {
+        return isBundle(first) && HeadItems.isTrophy(second) || isBundle(second) && HeadItems.isTrophy(first);
+    }
+
+    private static boolean isBundle(ItemStack item) {
+        return item != null && item.hasItemMeta() && item.getItemMeta() instanceof org.bukkit.inventory.meta.BundleMeta;
     }
 
     /** The player's own inventory screen has a crafting grid on top; a trophy may move freely there. */
