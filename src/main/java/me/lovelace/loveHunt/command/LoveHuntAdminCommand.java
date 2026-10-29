@@ -61,8 +61,8 @@ public final class LoveHuntAdminCommand implements CommandExecutor, TabCompleter
 
     @Override
     public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String[] args) {
+        // Silent on purpose: a command the sender cannot use is simply not theirs.
         if (!sender.hasPermission("lovehunt.admin")) {
-            lang.send(sender, "no-permission");
             return true;
         }
 

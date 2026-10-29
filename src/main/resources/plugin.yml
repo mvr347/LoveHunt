@@ -20,6 +20,7 @@ commands:
   lovehuntadmin:
     description: Administrative commands for LoveHunt (reload, block, admin-create, npc binding).
     permission: lovehunt.admin
+    permission-message: ""
     usage: /<command> <reload|block|unblock|create|npc|gui>
 permissions:
   lovehunt.use:

@@ -46,8 +46,6 @@ public final class LoveHuntCommand implements CommandExecutor, TabCompleter {
         if (args.length > 0 && (args[0].equalsIgnoreCase("admin") || args[0].equalsIgnoreCase("npc"))) {
             if (sender.hasPermission("lovehunt.admin")) {
                 lang.send(sender, "admin-moved");
-            } else {
-                lang.send(sender, "no-permission");
             }
             return true;
         }
@@ -66,7 +64,6 @@ public final class LoveHuntCommand implements CommandExecutor, TabCompleter {
             return true;
         }
         if (!player.hasPermission("lovehunt.use")) {
-            lang.send(player, "no-permission");
             return true;
         }
         if (args.length > 0 && args[0].equalsIgnoreCase("cancel")) {
@@ -118,7 +115,6 @@ public final class LoveHuntCommand implements CommandExecutor, TabCompleter {
 
     private boolean handleStats(CommandSender sender, String[] args) {
         if (sender instanceof Player player && !player.hasPermission("lovehunt.use")) {
-            lang.send(sender, "no-permission");
             return true;
         }
         OfflinePlayer target;
@@ -147,7 +143,6 @@ public final class LoveHuntCommand implements CommandExecutor, TabCompleter {
 
     private boolean handleTop(CommandSender sender) {
         if (sender instanceof Player player && !player.hasPermission("lovehunt.use")) {
-            lang.send(sender, "no-permission");
             return true;
         }
         Map<UUID, HunterRating> snapshot = bountyService.ratings().snapshot();
