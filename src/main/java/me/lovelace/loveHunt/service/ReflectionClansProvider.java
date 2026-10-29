@@ -105,6 +105,31 @@ public final class ReflectionClansProvider implements LoveHuntClans {
         return CompletableFuture.completedFuture(false);
     }
 
+    @Override
+    public CompletableFuture<Boolean> depositToChest(String clanTag, org.bukkit.inventory.ItemStack item) {
+        Object api = api();
+        Object clan = clanByTag(clanTag);
+        if (api == null || clan == null || item == null) {
+            return CompletableFuture.completedFuture(false);
+        }
+        try {
+            for (Method method : api.getClass().getMethods()) {
+                if (!method.getName().equals("depositItemsToChestAsync") || method.getParameterCount() != 2) {
+                    continue;
+                }
+                Object result = method.invoke(api, clan, List.of(item));
+                if (result instanceof CompletableFuture<?> future) {
+                    // What comes back is what did not fit: an empty list means the head is in the chest.
+                    return future.thenApply(left -> left instanceof java.util.Collection<?> rest && rest.isEmpty())
+                            .exceptionally(failure -> false);
+                }
+            }
+        } catch (ReflectiveOperationException exception) {
+            // An older LoveClans without this method: the caller hands the item to a player instead.
+        }
+        return CompletableFuture.completedFuture(false);
+    }
+
     private boolean isEnemyRelation(Object clan, Object otherClanId) throws ReflectiveOperationException {
         Method method = clan.getClass().getMethod("relationTo", UUID.class);
         method.setAccessible(true);

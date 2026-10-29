@@ -8,6 +8,7 @@ import me.lovelace.loveHunt.model.Bounty;
 import me.lovelace.loveHunt.model.BountyStatus;
 import me.lovelace.loveHunt.model.BountyType;
 import me.lovelace.loveHunt.model.CreateSession;
+import me.lovelace.loveHunt.model.HeadDetails;
 import me.lovelace.loveHunt.model.HunterRating;
 import me.lovelace.loveHunt.model.PendingReward;
 import me.lovelace.loveHunt.model.RewardItem;
@@ -1054,19 +1055,45 @@ public final class BountyService {
      *
      * @return whether a head was handed over
      */
-    public boolean deliverHeadToCustomer(Bounty bounty, Player hunter) {
+    public boolean deliverHeadToCustomer(Bounty bounty, Player hunter, HeadDetails death) {
         if (bounty == null || bounty.creatorUuid() == null
                 || (bounty.type() != BountyType.PLAYER && bounty.type() != BountyType.CLAN)) {
             return false;
         }
         UUID customer = bounty.creatorUuid();
-        ItemStack head = HeadItems.deliveredHead(lang, Bukkit.getOfflinePlayer(bounty.targetUuid()), bounty.targetName(), bounty.targetUuid());
+        var economy = economy();
+        long unit = economy == null ? 0L : economy.valueOf(bounty.reward().singlePrototype());
+        HeadDetails details = death.withHunt(unit * bounty.reward().amount(), Math.max(0L, System.currentTimeMillis() - bounty.createdAt()));
+        ItemStack head = HeadItems.deliveredHead(lang, Bukkit.getOfflinePlayer(bounty.targetUuid()), bounty.targetName(),
+                bounty.targetUuid(), details);
+        var placeholders = lang.placeholders("target", bounty.targetName(), "hunter", hunter.getName());
+        if (bounty.type() == BountyType.CLAN && bounty.clanTag() != null) {
+            // A clan order pays the clan: the head goes into the clan chest, and only falls back to the one who
+            // posted it when the chest is shut (someone has it open), full, or LoveClans cannot take items.
+            clans.depositToChest(bounty.clanTag(), head).thenAccept(stored -> Bukkit.getScheduler().runTask(plugin, () -> {
+                if (stored) {
+                    for (UUID member : clans.getClanMembers(bounty.clanTag())) {
+                        Player online = Bukkit.getPlayer(member);
+                        if (online != null) {
+                            lang.important(online, "head-delivered-clan", placeholders);
+                        }
+                    }
+                } else {
+                    giveHeadToCustomer(customer, head, bounty, placeholders);
+                }
+            }));
+            return true;
+        }
+        giveHeadToCustomer(customer, head, bounty, placeholders);
+        return true;
+    }
+
+    private void giveHeadToCustomer(UUID customer, ItemStack head, Bounty bounty, Map<String, String> placeholders) {
         deliverReward(customer, new RewardItem(Material.PLAYER_HEAD, 1, head, bounty.targetName()));
         Player online = Bukkit.getPlayer(customer);
         if (online != null) {
-            lang.important(online, "head-delivered", lang.placeholders("target", bounty.targetName(), "hunter", hunter.getName()));
+            lang.important(online, "head-delivered", placeholders);
         }
-        return true;
     }
 
     public void deliverPendingRewards(Player player) {

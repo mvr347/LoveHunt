@@ -3,8 +3,11 @@ package me.lovelace.loveHunt.listener;
 import me.lovelace.loveHunt.config.Lang;
 import me.lovelace.loveHunt.model.Bounty;
 import me.lovelace.loveHunt.model.BountyType;
+import me.lovelace.loveHunt.model.HeadDetails;
 import me.lovelace.loveHunt.service.BountyService;
 import me.lovelace.loveHunt.util.HeadItems;
+import org.bukkit.Material;
+import org.bukkit.attribute.Attribute;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.Projectile;
@@ -52,7 +55,8 @@ public final class BountyDeathListener implements Listener {
         if (attacker == null) {
             return;
         }
-        lastHitByVictim.put(victim.getUniqueId(), new LastHit(attacker.getUniqueId(), System.currentTimeMillis()));
+        lastHitByVictim.put(victim.getUniqueId(),
+                new LastHit(attacker.getUniqueId(), System.currentTimeMillis(), weaponOf(event.getDamager(), attacker)));
     }
 
     @EventHandler
@@ -68,7 +72,7 @@ public final class BountyDeathListener implements Listener {
 
         Bounty bountyOnVictim = bountyService.activeOn(victim.getUniqueId());
         if (bountyOnVictim != null && killerUuid != null && bountyService.hasAccepted(killerUuid, bountyOnVictim.id())) {
-            ItemStack head = HeadItems.trophy(lang, victim, victim.getName(), bountyOnVictim.id(), killerUuid);
+            ItemStack head = HeadItems.trophy(lang, victim, victim.getName(), bountyOnVictim.id(), killerUuid, detailsOf(victim));
             // Only the killing hunter may pick the trophy up (TrophyBindingListener enforces it for the rest).
             victim.getWorld().dropItemNaturally(victim.getLocation(), head, item -> item.setOwner(killerUuid));
         }
@@ -123,6 +127,27 @@ public final class BountyDeathListener implements Listener {
         return null;
     }
 
-    private record LastHit(UUID attackerUuid, long timestamp) {
+    /** Weapon in the killer's hand for a melee blow; the bow, crossbow or trident for a shot; else the projectile. */
+    private static String weaponOf(Entity damager, Player attacker) {
+        Material held = attacker.getInventory().getItemInMainHand().getType();
+        if (damager instanceof Projectile projectile) {
+            if (held == Material.BOW || held == Material.CROSSBOW || held == Material.TRIDENT) {
+                return held.name();
+            }
+            return projectile.getType().name();
+        }
+        return held.isAir() ? "FIST" : held.name();
+    }
+
+    /** How the target dies: the cause of the last damage, the weapon of the last hit and the armor worn. */
+    private HeadDetails detailsOf(Player victim) {
+        var last = victim.getLastDamageCause();
+        String cause = last == null ? "UNKNOWN" : last.getCause().name();
+        LastHit hit = lastHitByVictim.get(victim.getUniqueId());
+        var armor = victim.getAttribute(Attribute.ARMOR);
+        return new HeadDetails(cause, hit == null ? "FIST" : hit.weapon(), armor == null ? 0.0 : armor.getValue(), 0L, 0L);
+    }
+
+    private record LastHit(UUID attackerUuid, long timestamp, String weapon) {
     }
 }
