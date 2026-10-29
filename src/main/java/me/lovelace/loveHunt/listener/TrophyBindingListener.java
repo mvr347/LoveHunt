@@ -90,6 +90,15 @@ public final class TrophyBindingListener implements Listener {
     @EventHandler(priority = EventPriority.HIGHEST)
     public void onOwnerDeath(PlayerDeathEvent event) {
         event.getDrops().removeIf(HeadItems::isTrophy);
+        // With keepInventory the drops are empty and the whole inventory comes back at respawn, so take them out of it too.
+        if (event.getKeepInventory()) {
+            var inventory = event.getEntity().getInventory();
+            for (int slot = 0; slot < inventory.getSize(); slot++) {
+                if (HeadItems.isTrophy(inventory.getItem(slot))) {
+                    inventory.setItem(slot, null);
+                }
+            }
+        }
     }
 
     @EventHandler(ignoreCancelled = true)
