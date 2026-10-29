@@ -26,7 +26,7 @@ class LangMigratorTest {
 
     @Test
     void fileAtTheLatestVersionIsNotTouched() {
-        YamlConfiguration file = server("lang-version: 2\ngui:\n  create: \"<green>Admin edit\"\n");
+        YamlConfiguration file = server("lang-version: 3\ngui:\n  create: \"<green>Admin edit\"\n");
         assertFalse(LangMigrator.migrate(file, bundled()));
         assertEquals("<green>Admin edit", file.getString("gui.create"));
     }
@@ -74,5 +74,22 @@ class LangMigratorTest {
         file.set("gui.create", "<green>Admin edit after migration");
         assertFalse(LangMigrator.migrate(file, jar));
         assertEquals("<green>Admin edit after migration", file.getString("gui.create"));
+    }
+
+    @Test
+    void aVersionTwoFileGetsTheNewHeadTextsAndKeepsTheRest() {
+        YamlConfiguration jar = bundled();
+        YamlConfiguration file = server("""
+                lang-version: 2
+                prefix: "<red>Своя охота"
+                head:
+                  delivered:
+                    lore:
+                      - "старый текст"
+                """);
+        assertTrue(LangMigrator.migrate(file, jar));
+        assertEquals(jar.getStringList("head.delivered.lore"), file.getStringList("head.delivered.lore"));
+        assertEquals("<red>Своя охота", file.getString("prefix"));
+        assertEquals(LangMigrator.latestVersion(), file.getInt(LangMigrator.VERSION_KEY));
     }
 }

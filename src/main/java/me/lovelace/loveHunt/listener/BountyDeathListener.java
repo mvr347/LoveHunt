@@ -11,6 +11,10 @@ import org.bukkit.attribute.Attribute;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.Projectile;
+import org.bukkit.entity.Trident;
+import org.bukkit.event.entity.ProjectileLaunchEvent;
+import org.bukkit.persistence.PersistentDataType;
+import me.lovelace.loveHunt.LoveHunt;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
@@ -127,15 +131,36 @@ public final class BountyDeathListener implements Listener {
         return null;
     }
 
-    /** Weapon in the killer's hand for a melee blow; the bow, crossbow or trident for a shot; else the projectile. */
-    private static String weaponOf(Entity damager, Player attacker) {
-        Material held = attacker.getInventory().getItemInMainHand().getType();
-        if (damager instanceof Projectile projectile) {
-            if (held == Material.BOW || held == Material.CROSSBOW || held == Material.TRIDENT) {
+    /** Remembers what a projectile was shot or thrown with while it is still in the hand. */
+    @EventHandler(ignoreCancelled = true)
+    public void onLaunch(ProjectileLaunchEvent event) {
+        if (!(event.getEntity().getShooter() instanceof Player shooter)) {
+            return;
+        }
+        event.getEntity().getPersistentDataContainer().set(LoveHunt.SHOT_WEAPON_KEY, PersistentDataType.STRING,
+                launchWeapon(event.getEntity(), shooter));
+    }
+
+    private static String launchWeapon(Projectile projectile, Player shooter) {
+        if (projectile instanceof Trident) {
+            return "TRIDENT";
+        }
+        for (Material held : new Material[] {shooter.getInventory().getItemInMainHand().getType(),
+                shooter.getInventory().getItemInOffHand().getType()}) {
+            if (held == Material.BOW || held == Material.CROSSBOW) {
                 return held.name();
             }
-            return projectile.getType().name();
         }
+        return projectile.getType().name();
+    }
+
+    /** Weapon in the killer's hand for a melee blow; for a shot, what it was launched with (see {@link #onLaunch}). */
+    private static String weaponOf(Entity damager, Player attacker) {
+        if (damager instanceof Projectile projectile) {
+            String shot = projectile.getPersistentDataContainer().get(LoveHunt.SHOT_WEAPON_KEY, PersistentDataType.STRING);
+            return shot != null ? shot : projectile.getType().name();
+        }
+        Material held = attacker.getInventory().getItemInMainHand().getType();
         return held.isAir() ? "FIST" : held.name();
     }
 
