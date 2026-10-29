@@ -8,7 +8,9 @@ import me.lovelace.loveHunt.service.BountyService;
 import me.lovelace.loveHunt.util.HeadItems;
 import org.bukkit.Material;
 import org.bukkit.attribute.Attribute;
+import org.bukkit.entity.AbstractArrow;
 import org.bukkit.entity.Entity;
+import org.bukkit.entity.Firework;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.Projectile;
 import org.bukkit.entity.Trident;
@@ -145,10 +147,16 @@ public final class BountyDeathListener implements Listener {
         if (projectile instanceof Trident) {
             return "TRIDENT";
         }
-        for (Material held : new Material[] {shooter.getInventory().getItemInMainHand().getType(),
-                shooter.getInventory().getItemInOffHand().getType()}) {
-            if (held == Material.BOW || held == Material.CROSSBOW) {
-                return held.name();
+        // A bow or crossbow in a hand only counts for what it can fire: arrows, and fireworks from a crossbow. A potion
+        // thrown with a bow in the off-hand is still a potion.
+        boolean arrow = projectile instanceof AbstractArrow;
+        boolean rocket = projectile instanceof Firework;
+        if (arrow || rocket) {
+            for (Material held : new Material[] {shooter.getInventory().getItemInMainHand().getType(),
+                    shooter.getInventory().getItemInOffHand().getType()}) {
+                if (held == Material.CROSSBOW || arrow && held == Material.BOW) {
+                    return held.name();
+                }
             }
         }
         return projectile.getType().name();
