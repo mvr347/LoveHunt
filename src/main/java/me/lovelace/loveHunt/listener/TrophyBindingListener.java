@@ -3,6 +3,7 @@ package me.lovelace.loveHunt.listener;
 import me.lovelace.loveHunt.config.Lang;
 import me.lovelace.loveHunt.util.HeadItems;
 import org.bukkit.entity.Item;
+import org.bukkit.entity.ItemFrame;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -15,7 +16,9 @@ import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.event.inventory.InventoryPickupItemEvent;
 import org.bukkit.event.inventory.InventoryType;
+import org.bukkit.event.player.PlayerArmorStandManipulateEvent;
 import org.bukkit.event.player.PlayerDropItemEvent;
+import org.bukkit.event.player.PlayerInteractEntityEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 
@@ -60,6 +63,27 @@ public final class TrophyBindingListener implements Listener {
     public void onInventoryPickup(InventoryPickupItemEvent event) {
         if (HeadItems.isTrophy(event.getItem().getItemStack())) {
             event.setCancelled(true);
+        }
+    }
+
+    /** Armor stands take an item from the hand without any inventory event. */
+    @EventHandler(ignoreCancelled = true)
+    public void onArmorStand(PlayerArmorStandManipulateEvent event) {
+        if (HeadItems.isTrophy(event.getPlayerItem())) {
+            event.setCancelled(true);
+            lang.notice(event.getPlayer(), "trophy-no-store");
+        }
+    }
+
+    /** So do item frames. */
+    @EventHandler(ignoreCancelled = true)
+    public void onItemFrame(PlayerInteractEntityEvent event) {
+        if (!(event.getRightClicked() instanceof ItemFrame)) {
+            return;
+        }
+        if (HeadItems.isTrophy(event.getPlayer().getInventory().getItem(event.getHand()))) {
+            event.setCancelled(true);
+            lang.notice(event.getPlayer(), "trophy-no-store");
         }
     }
 
