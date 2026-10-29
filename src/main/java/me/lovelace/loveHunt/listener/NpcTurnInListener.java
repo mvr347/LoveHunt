@@ -12,6 +12,7 @@ import me.lovelace.loveHunt.config.Settings;
 import me.lovelace.loveHunt.gui.MenuManager;
 import me.lovelace.loveHunt.model.Bounty;
 import me.lovelace.loveHunt.service.BountyService;
+import me.lovelace.loveHunt.util.HeadItems;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -95,11 +96,33 @@ public final class NpcTurnInListener implements Listener {
             lang.notice(player, "turnin-not-your-bounty");
             return;
         }
+        // A trophy is bound to the hunter who made the kill; another hunter of the same bounty cannot hand it in.
+        java.util.UUID owner = HeadItems.trophyOwner(trophyStack(player, bountyId));
+        if (owner != null && !owner.equals(player.getUniqueId())) {
+            lang.notice(player, "turnin-not-your-bounty");
+            return;
+        }
 
         consumeTrophy(player, bountyId);
         bountyService.complete(bounty, player);
+        bountyService.deliverHeadToCustomer(bounty, player);
         lang.important(player, "turnin-success", lang.placeholders("target", bounty.targetName()));
         maybeSayAmbient(player);
+    }
+
+    /** The stack that holds the trophy of {@code bountyId}: the main hand first, then the rest of the inventory. */
+    private ItemStack trophyStack(Player player, long bountyId) {
+        ItemStack held = player.getInventory().getItemInMainHand();
+        if (bountyIdOf(held) != null && bountyIdOf(held) == bountyId) {
+            return held;
+        }
+        for (ItemStack item : player.getInventory().getContents()) {
+            Long id = bountyIdOf(item);
+            if (id != null && id == bountyId) {
+                return item;
+            }
+        }
+        return null;
     }
 
     private Long findTrophyInInventory(Player player) {

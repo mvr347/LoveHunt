@@ -83,6 +83,8 @@ public final class Settings {
     private int passSpeedLevel;
     private int passStrengthLevel;
     private double passExtraHealth;
+    private double[] passCompassRadii;
+    private long passCompassRefreshMillis;
     private int hunterPlaystyleAggressiveThreshold;
     private double hunterPlaystyleAggressiveBonusPercent;
     private double hunterPlaystyleKindPenaltyPercent;
@@ -164,6 +166,8 @@ public final class Settings {
         passSpeedLevel = Math.max(0, config.getInt("hunter-pass.buffs.speed-level", 1));
         passStrengthLevel = Math.max(0, config.getInt("hunter-pass.buffs.strength-level", 1));
         passExtraHealth = Math.max(0.0, config.getDouble("hunter-pass.buffs.extra-health", 2.0));
+        passCompassRadii = radiusList(config.getDoubleList("hunter-pass.compass.error-blocks"), new double[]{80.0, 55.0, 35.0, 20.0, 8.0});
+        passCompassRefreshMillis = Math.max(5, config.getInt("hunter-pass.compass.refresh-seconds", 90)) * 1000L;
         hunterPlaystyleAggressiveThreshold = config.getInt("hunter-reward.playstyle-bonus.aggressive-threshold", 0);
         hunterPlaystyleAggressiveBonusPercent = config.getDouble("hunter-reward.playstyle-bonus.aggressive-bonus-percent", 20.0) / 100.0;
         hunterPlaystyleKindPenaltyPercent = config.getDouble("hunter-reward.playstyle-bonus.kind-penalty-percent", 20.0) / 100.0;
@@ -373,6 +377,8 @@ public final class Settings {
     public int passMaxPlaystyleLevelToBuy() { return passMaxPlaystyleLevel; }
     public int[] passLevelThresholds() { return passLevelThresholds.clone(); }
     public double[] passTaxRates() { return passTaxRates.clone(); }
+    public double[] passCompassRadii() { return passCompassRadii.clone(); }
+    public long passCompassRefreshMillis() { return passCompassRefreshMillis; }
     public int passMaxLevel() { return passLevelThresholds.length; }
     public long passDecayMillis() { return java.time.Duration.ofDays(passDecayDays).toMillis(); }
     public long passResetMillis() { return java.time.Duration.ofDays(passResetDays).toMillis(); }
@@ -487,6 +493,13 @@ public final class Settings {
         if (values == null || values.isEmpty()) return fallback;
         int[] out = new int[values.size()];
         for (int i = 0; i < out.length; i++) out[i] = Math.max(0, values.get(i));
+        return out;
+    }
+
+    private static double[] radiusList(java.util.List<Double> values, double[] fallback) {
+        if (values == null || values.isEmpty()) return fallback;
+        double[] out = new double[values.size()];
+        for (int i = 0; i < out.length; i++) out[i] = Math.max(0.0, values.get(i));
         return out;
     }
 

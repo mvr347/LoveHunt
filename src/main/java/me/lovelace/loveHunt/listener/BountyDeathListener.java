@@ -1,11 +1,10 @@
 package me.lovelace.loveHunt.listener;
 
-import me.lovelace.loveHunt.LoveHunt;
 import me.lovelace.loveHunt.config.Lang;
 import me.lovelace.loveHunt.model.Bounty;
 import me.lovelace.loveHunt.model.BountyType;
 import me.lovelace.loveHunt.service.BountyService;
-import me.lovelace.loveHunt.util.HeadUtil;
+import me.lovelace.loveHunt.util.HeadItems;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.Projectile;
@@ -15,8 +14,6 @@ import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.inventory.meta.ItemMeta;
-import org.bukkit.persistence.PersistentDataType;
 
 import java.util.Set;
 import java.util.UUID;
@@ -71,8 +68,9 @@ public final class BountyDeathListener implements Listener {
 
         Bounty bountyOnVictim = bountyService.activeOn(victim.getUniqueId());
         if (bountyOnVictim != null && killerUuid != null && bountyService.hasAccepted(killerUuid, bountyOnVictim.id())) {
-            ItemStack head = bountyTrophy(victim, bountyOnVictim.id());
-            victim.getWorld().dropItemNaturally(victim.getLocation(), head);
+            ItemStack head = HeadItems.trophy(lang, victim, victim.getName(), bountyOnVictim.id(), killerUuid);
+            // Only the killing hunter may pick the trophy up (TrophyBindingListener enforces it for the rest).
+            victim.getWorld().dropItemNaturally(victim.getLocation(), head, item -> item.setOwner(killerUuid));
         }
 
         Player killer = killerUuid == null ? null : victim.getServer().getPlayer(killerUuid);
@@ -123,18 +121,6 @@ public final class BountyDeathListener implements Listener {
             return shooter;
         }
         return null;
-    }
-
-    private ItemStack bountyTrophy(Player victim, long bountyId) {
-        ItemStack head = HeadUtil.playerHead(victim);
-        ItemMeta meta = head.getItemMeta();
-        if (meta != null) {
-            meta.displayName(lang.legacy("§6Трофей розыска: §f" + victim.getName()));
-            meta.lore(java.util.List.of(lang.legacy("§7Сдайте NPC для завершения розыска")));
-            meta.getPersistentDataContainer().set(LoveHunt.BOUNTY_KEY, PersistentDataType.LONG, bountyId);
-            head.setItemMeta(meta);
-        }
-        return head;
     }
 
     private record LastHit(UUID attackerUuid, long timestamp) {
