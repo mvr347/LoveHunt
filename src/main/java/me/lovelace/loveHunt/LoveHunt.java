@@ -44,6 +44,12 @@ public final class LoveHunt extends JavaPlugin {
     public static NamespacedKey TROPHY_HUNTER_KEY;
     /** Marks the head handed to the customer; the value is the victim's UUID. LoveShop's Wanderer reads it by name. */
     public static NamespacedKey HEAD_KEY;
+    /** How the target died, on the trophy ({@link me.lovelace.loveHunt.model.HeadDetails}). */
+    public static NamespacedKey TROPHY_DETAILS_KEY;
+    /** The same plus the hunt, on the head handed to the customer; LoveShop reads it by name. */
+    public static NamespacedKey HEAD_DETAILS_KEY;
+    /** On a projectile: the weapon it was shot or thrown with, written at launch (the hand may change before it hits). */
+    public static NamespacedKey SHOT_WEAPON_KEY;
 
     private Settings settings;
     private Lang lang;
@@ -66,6 +72,9 @@ public final class LoveHunt extends JavaPlugin {
         BOUNTY_KEY = new NamespacedKey(this, "bounty_id");
         TROPHY_HUNTER_KEY = new NamespacedKey(this, "trophy_hunter");
         HEAD_KEY = new NamespacedKey(this, "delivered_head");
+        TROPHY_DETAILS_KEY = new NamespacedKey(this, "trophy_details");
+        HEAD_DETAILS_KEY = new NamespacedKey(this, "head_details");
+        SHOT_WEAPON_KEY = new NamespacedKey(this, "shot_weapon");
 
         settings = new Settings(this);
         settings.load();

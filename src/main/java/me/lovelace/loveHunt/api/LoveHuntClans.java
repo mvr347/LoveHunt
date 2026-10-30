@@ -27,6 +27,14 @@ public interface LoveHuntClans {
         return CompletableFuture.completedFuture(false);
     }
 
+    /**
+     * Кладёт предмет в клановый сундук. Future с true, когда предмет лёг целиком; false, если места нет,
+     * сундук сейчас открыт у кого-то или плагин кланов не умеет принимать предметы, тогда его надо отдать иначе.
+     */
+    default CompletableFuture<Boolean> depositToChest(String clanTag, org.bukkit.inventory.ItemStack item) {
+        return CompletableFuture.completedFuture(false);
+    }
+
     default boolean isSameClan(UUID first, UUID second) {
         String firstClan = getClanTag(first);
         String secondClan = getClanTag(second);

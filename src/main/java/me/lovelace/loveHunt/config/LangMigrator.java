@@ -21,7 +21,9 @@ public final class LangMigrator {
     /** Sections overwritten when migrating to version N (index = N - 2). */
     private static final List<List<Root>> OVERWRITE_BY_VERSION = List.of(
             // v2: GUI lore in the lore standard - the shared style.* block and every gui.* text of the menus
-            List.of(new Root("style"), new Root("gui")));
+            List.of(new Root("style"), new Root("gui")),
+            // v3: head.* - the lore of the trophy and of the delivered head now names how the target died
+            List.of(new Root("head")));
 
     private LangMigrator() {
     }
