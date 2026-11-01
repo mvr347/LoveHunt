@@ -447,3 +447,10 @@ accept-no-pass: "<red>Брать заказы могут только охотн
 create-no-hunters: "<red>Сейчас на сервере нет ни одного охотника, заказ создать нельзя."
 reward-not-coin: "<red>Награда должна быть монетами: возьмите монеты в руку."
 reward-given-coins: "<green>Вы получили <white>{amount}</white> {currency} <gray>(налог {tax}% от {gross})</gray>."
+
+# Значения новых плейсхолдеров билета; технический has_pass возвращает true/false.
+pass-placeholders:
+  owned: Куплен
+  missing: Нет
+  disabled: Не требуется
+  loading: Загрузка
