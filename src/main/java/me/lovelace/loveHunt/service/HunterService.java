@@ -8,7 +8,6 @@ import me.lovelace.loveHunt.config.Lang;
 import me.lovelace.loveHunt.config.Settings;
 import me.lovelace.loveHunt.database.DatabaseManager;
 import me.lovelace.loveHunt.model.Hunter;
-import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
@@ -39,6 +38,7 @@ public final class HunterService {
     private final DatabaseManager database;
     private final NamespacedKey ticketKey;
     private final ConcurrentHashMap<UUID, Hunter> hunters = new ConcurrentHashMap<>();
+    private volatile boolean loaded;
     private long lastTickAt;
     private int ticks;
 
@@ -51,14 +51,26 @@ public final class HunterService {
     }
 
     public CompletableFuture<Void> load() {
-        return database.loadPassHolders().thenAccept(loaded -> {
-            hunters.clear();
-            hunters.putAll(loaded);
-        });
+        return database.loadPassHolders()
+                .thenAccept(
+                        loaded -> {
+                            hunters.clear();
+                            hunters.putAll(loaded);
+                            this.loaded = true;
+                        });
     }
 
     public boolean enabled() {
         return settings.passEnabled();
+    }
+
+    /** Localized ticket ownership, kept separate from eligibility when passes are disabled. */
+    public String passStatus(UUID uuid) {
+        String state =
+                !enabled()
+                        ? "disabled"
+                        : !loaded ? "loading" : hunters.containsKey(uuid) ? "owned" : "missing";
+        return lang.plain("pass-placeholders." + state);
     }
 
     /** With the pass switched off everyone may hunt, as before. */
