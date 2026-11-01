@@ -56,7 +56,11 @@ public final class HeadUtil {
 
             if (urlString != null) {
                 URL textureUrl = URI.create(urlString).toURL();
-                PlayerProfile profile = Bukkit.createPlayerProfile(UUID.randomUUID());
+                PlayerProfile profile =
+                        Bukkit.createPlayerProfile(
+                                UUID.nameUUIDFromBytes(
+                                        input.getBytes(java.nio.charset.StandardCharsets.UTF_8)),
+                                "LoveTexture");
                 PlayerTextures textures = profile.getTextures();
                 textures.setSkin(textureUrl);
                 profile.setTextures(textures);
