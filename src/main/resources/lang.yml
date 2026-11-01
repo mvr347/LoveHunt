@@ -10,7 +10,7 @@
 # Меняете оформление меню - поднимайте версию и добавляйте шаг в LangMigrator.
 lang-version: 3
 
-prefix: "<gradient:#FF5555:#CC0000><bold>Охота</bold></gradient> <dark_gray>»</dark_gray> "
+prefix: "<gradient:#FF5555:#CC0000>Охота</gradient> <white>»</white> "
 only-player: "<red>Команда доступна только игроку."
 not-ready: "<yellow>LoveHunt ещё загружает данные. Попробуйте через несколько секунд."
 main-menu-npc-only: "<yellow>Главное меню розыска открывает NPC Охотник — подойдите к нему."
