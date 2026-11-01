@@ -662,7 +662,7 @@ public final class MenuManager {
                     lore(max ? "gui.pass.mine-lore-max" : "gui.pass.mine-lore", placeholders, List.of()));
         }
         var refusal = hunters.purchaseRefusal(player);
-        Map<String, String> placeholders = lang.placeholders("price", settings.passPrice(),
+        Map<String, String> placeholders = lang.placeholders("price", hunters.price(),
                 "tax", Math.round(me.lovelace.loveHunt.service.HunterRules.taxFor(1, settings.passTaxRates()) * 100));
         return actionButton("gui.items.pass", Material.PAPER, "pass-base64", "gui.pass.buy", "gui.pass.buy-lore",
                 "gui.pass.buy-action", placeholders, refusal == null ? null : new Refusal(refusal.key(), refusal.placeholders()));

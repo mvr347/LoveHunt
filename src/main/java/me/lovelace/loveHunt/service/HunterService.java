@@ -120,7 +120,11 @@ public final class HunterService {
     }
 
     public String price(LoveEconomy economy) {
-        return settings.passPrice() + " " + economy.currencyName();
+        return me.lovelace.loveHunt.util.CoinPrice.format(economy, settings.passPrice());
+    }
+
+    public String price() {
+        return price(LoveCore.service(LoveEconomy.class).orElse(null));
     }
 
     public ItemStack ticket() {
