@@ -658,7 +658,7 @@ public final class MenuManager {
                     "next", max ? hunter.completed() : thresholds[level],
                     "bar", LoreBar.bar(max ? 1 : hunter.completed(), max ? 1 : Math.max(1, thresholds[level])),
                     "reset", settings.passResetDays());
-            return button("gui.items.pass", Material.PAPER, "pass-base64", lang.component("gui.pass.mine", placeholders, false),
+            return button("gui.items.pass", Material.PAPER, "pass-owned-base64", lang.component("gui.pass.mine", placeholders, false),
                     lore(max ? "gui.pass.mine-lore-max" : "gui.pass.mine-lore", placeholders, List.of()));
         }
         var refusal = hunters.purchaseRefusal(player);
