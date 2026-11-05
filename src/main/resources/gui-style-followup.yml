@@ -1,5 +1,5 @@
 # Обновление 02.11.2026: резервная копия .pre-style-20261102.bak; пользовательские значения сохраняются.
-version: 20261102
+version: 20261105
 updates:
 - file: heads.yml
   path: previous-base64
@@ -10,4 +10,11 @@ updates:
   path: next-base64
   before: "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvOWM4YzJhMDExYmU4ZTI2NDk4YjAzNmJjNDA3OTc3NDA4ODczYTYxYTc0MjYxMmM0OTdhMjI1MzU5YTMwYjRjZDMifX19"
   value: eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvOGFhMTg3ZmVkZTg4ZGUwMDJjYmQ5MzA1NzVlYjdiYTQ4ZDNiMWEwNmQ5NjFiZGM1MzU4MDA3NTBhZjc2NDkyNiJ9fX0=
+  preserve-custom: true
+# 05.11.2026: в хэше текстуры «подтвердить» была опечатка (badc088a вместо badc048a) — голова не загружалась.
+# Заменяется только точное прежнее значение.
+- file: heads.yml
+  path: confirm-base64
+  before: eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvYmFkYzA4OGE3Y2U3OGY3ZGFkNzJhMDdkYTI3ZDg1YzA5MTY4ODFlNTUyMmVlZWQxZTNkYWYyMTdhMzhjMWEifX19
+  value: eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvYmFkYzA0OGE3Y2U3OGY3ZGFkNzJhMDdkYTI3ZDg1YzA5MTY4ODFlNTUyMmVlZWQxZTNkYWYyMTdhMzhjMWEifX19
   preserve-custom: true
