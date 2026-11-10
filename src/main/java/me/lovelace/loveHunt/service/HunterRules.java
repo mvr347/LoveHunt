@@ -54,4 +54,15 @@ public final class HunterRules {
         if (level <= 1 || thresholds.length == 0) return 0;
         return thresholds[Math.min(level, thresholds.length) - 1];
     }
+
+    /**
+     * Whether a hunter has earned the "Reaper" achievement: the top pass level, at least {@code minCompleted}
+     * finished bounties and a failure share strictly below {@code maxFailedPercent} of all taken bounties.
+     */
+    public static boolean isReaper(int level, int maxLevel, int completed, int failed, int minCompleted,
+                                   double maxFailedPercent) {
+        if (level < maxLevel || completed < Math.max(1, minCompleted)) return false;
+        double failedPercent = 100.0 * failed / (completed + failed);
+        return failedPercent < maxFailedPercent;
+    }
 }

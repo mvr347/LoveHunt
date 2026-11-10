@@ -80,6 +80,8 @@ public final class Settings {
     private int passDecayDays;
     private int passResetDays;
     private int passPlaystyleShift;
+    private int reaperMinCompleted;
+    private double reaperMaxFailedPercent;
     private int passSpeedLevel;
     private int passStrengthLevel;
     private double passExtraHealth;
@@ -163,6 +165,8 @@ public final class Settings {
         passDecayDays = Math.max(1, config.getInt("hunter-pass.level-decay-days", 2));
         passResetDays = Math.max(passDecayDays, config.getInt("hunter-pass.reset-days", 5));
         passPlaystyleShift = config.getInt("hunter-pass.playstyle-shift-per-bounty", -60);
+        reaperMinCompleted = Math.max(1, config.getInt("achievements.reaper.min-completed", 50));
+        reaperMaxFailedPercent = Math.max(0.0, config.getDouble("achievements.reaper.max-failed-percent", 1.0));
         passSpeedLevel = Math.max(0, config.getInt("hunter-pass.buffs.speed-level", 1));
         passStrengthLevel = Math.max(0, config.getInt("hunter-pass.buffs.strength-level", 1));
         passExtraHealth = Math.max(0.0, config.getDouble("hunter-pass.buffs.extra-health", 2.0));
@@ -384,6 +388,8 @@ public final class Settings {
     public long passResetMillis() { return java.time.Duration.ofDays(passResetDays).toMillis(); }
     public int passResetDays() { return passResetDays; }
     public int passPlaystyleShift() { return passPlaystyleShift; }
+    public int reaperMinCompleted() { return reaperMinCompleted; }
+    public double reaperMaxFailedPercent() { return reaperMaxFailedPercent; }
     public int passSpeedLevel() { return passSpeedLevel; }
     public int passStrengthLevel() { return passStrengthLevel; }
     public double passExtraHealth() { return passExtraHealth; }
