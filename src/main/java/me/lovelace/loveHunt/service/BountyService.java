@@ -398,7 +398,7 @@ public final class BountyService {
 
         ratingService.recordCompletion(hunter.getUniqueId());
         payOut(hunter, finalReward, taxRate);
-        if (passes != null) passes.recordCompletion(hunter);
+        if (passes != null) passes.recordCompletion(hunter, ratingService.get(hunter.getUniqueId()));
         Bukkit.broadcast(lang.component("bounty-completed", lang.placeholders("hunter", hunter.getName(), "target", bounty.targetName()), true));
         Bukkit.getPluginManager().callEvent(new BountyClaimEvent(bounty, hunter));
 

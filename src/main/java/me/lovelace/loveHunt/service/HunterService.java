@@ -8,6 +8,7 @@ import me.lovelace.loveHunt.config.Lang;
 import me.lovelace.loveHunt.config.Settings;
 import me.lovelace.loveHunt.database.DatabaseManager;
 import me.lovelace.loveHunt.model.Hunter;
+import me.lovelace.loveHunt.model.HunterRating;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
@@ -32,6 +33,9 @@ import java.util.concurrent.ConcurrentHashMap;
  * All state-changing calls run on the main thread; the cache is concurrent so reads from the API are safe.
  */
 public final class HunterService {
+    /** Id of the achievement in LoveEssential's catalogue. */
+    static final String REAPER_ACHIEVEMENT = "hunt_reaper";
+
     private final JavaPlugin plugin;
     private final Settings settings;
     private final Lang lang;
@@ -181,7 +185,7 @@ public final class HunterService {
     }
 
     /** Counts a completed bounty, may raise the level, and shifts the hunter's playstyle toward aggression. */
-    public void recordCompletion(Player player) {
+    public void recordCompletion(Player player, HunterRating rating) {
         Hunter current = hunters.get(player.getUniqueId());
         if (current == null) return;
         int completed = current.completed() + 1;
@@ -194,6 +198,10 @@ public final class HunterService {
                     "tax", Math.round(HunterRules.taxFor(level, settings.passTaxRates()) * 100)));
         }
         shiftPlaystyle(player.getUniqueId());
+        if (HunterRules.isReaper(level, settings.passMaxLevel(), rating.completed(), rating.failed(),
+                settings.reaperMinCompleted(), settings.reaperMaxFailedPercent())) {
+            AchievementsHook.unlock(player.getUniqueId(), REAPER_ACHIEVEMENT);
+        }
     }
 
     private void shiftPlaystyle(UUID uuid) {

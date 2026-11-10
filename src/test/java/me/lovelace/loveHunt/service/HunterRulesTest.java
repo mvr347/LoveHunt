@@ -61,4 +61,14 @@ class HunterRulesTest {
         assertEquals(3, HunterRules.completedAtLevelStart(2, THRESHOLDS));
         assertEquals(15, HunterRules.completedAtLevelStart(4, THRESHOLDS));
     }
+
+    @Test
+    void reaperNeedsTopLevelEnoughBountiesAndFewFailures() {
+        assertTrue(HunterRules.isReaper(5, 5, 50, 0, 50, 1.0));
+        assertFalse(HunterRules.isReaper(5, 5, 49, 0, 50, 1.0), "one short of the minimum");
+        assertFalse(HunterRules.isReaper(4, 5, 80, 0, 50, 1.0), "not the top level");
+        assertTrue(HunterRules.isReaper(5, 5, 100, 1, 50, 1.0), "0.99% is below 1%");
+        assertFalse(HunterRules.isReaper(5, 5, 99, 1, 50, 1.0), "exactly 1% is not below 1%");
+        assertFalse(HunterRules.isReaper(5, 5, 60, 5, 50, 1.0));
+    }
 }
