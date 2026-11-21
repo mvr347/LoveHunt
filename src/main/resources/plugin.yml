@@ -5,7 +5,7 @@ api-version: '26.2'
 author: Lovelace
 description: Item-based bounty hunting for Paper/Purpur.
 depend: [LoveCore, LoveEssential]
-softdepend: [Clans, Citizens, PlaceholderAPI]
+softdepend: [Clans, PlaceholderAPI]
 commands:
   lovehunt:
     description: LoveHunt player commands (the main menu is opened by the Hunter NPC).

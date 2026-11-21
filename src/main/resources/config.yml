@@ -150,20 +150,14 @@ offline:
   # (minus economy.offline-delete-penalty-percent) to the creator.
   delete-days: 5
 
-# 2026-10-22: чьим API пользоваться для NPC сдатчика трофеев: citizens | loveessential.
-# Нужен LoveCore (он поднимает адаптер Citizens) либо LoveEssential. Если выбранный провайдер не найден,
-# в лог пишется одно предупреждение, а сдача трофеев через NPC отключается - плагин не падает.
-# Привязка хранится для выбранного провайдера: сменили провайдера - привяжите NPC заново.
-# 2026-10-23: значение global (по умолчанию) следует общему переключателю integrations.provider в config.yml
-# LoveCore: external - Citizens, loveessential - LoveEssential, один выбор сразу для всех плагинов. Пока в
-# ядре стоит external, поведение прежнее (citizens). Явное citizens или loveessential перекрывает общий
-# выбор. Выбор читается при загрузке настроек: после смены нужен /lovehunt reload. Уже сохранённое на
-# сервере `citizens` остаётся явным: чтобы следовать ядру, замените его на `global`.
-integrations:
-  npc-provider: global
+# 2026-11-21: секция integrations.npc-provider удалена. NPC сдатчика трофеев теперь поставляет только
+# LoveEssential (через LoveCore); Citizens и другие провайдеры не поддерживаются, выбирать больше не из чего.
+# Оставленный на сервере ключ integrations.npc-provider игнорируется, при загрузке в логе будет одно
+# предупреждение. Если LoveEssential не найден, в лог пишется одно предупреждение, а сдача трофеев через
+# NPC отключается - плагин не падает.
 
-# 2026-10-22: привязка NPC теперь строковый ключ (раньше число citizens.turn-in-npc-id): у Citizens это
-# числовой id, записанный текстом, у LoveEssential - его собственный id (ext-xxxxxxxx). Старые
+# 2026-10-22: привязка NPC теперь строковый ключ (раньше число citizens.turn-in-npc-id): id NPC LoveEssential
+# (ext-xxxxxxxx), имя или номер NPC, записанный текстом. Старые
 # citizens.turn-in-npc-id / turn-in-npc-name читаются и сами переносятся сюда при загрузке.
 # Задаётся командой /lovehuntadmin npc bind (смотрите на NPC). Пусто = не привязан.
 npc:

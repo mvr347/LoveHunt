@@ -1,59 +1,37 @@
 package me.lovelace.loveHunt.config;
 
-import dev.lovelace.lovecore.api.LoveCore;
-import dev.lovelace.lovecore.api.provider.ProviderKind;
+import dev.lovelace.lovecore.api.provider.Providers;
 import org.bukkit.configuration.ConfigurationSection;
-
-import java.util.Locale;
-import java.util.Set;
 
 /**
  * Pure (server-free) parsing of the turn-in NPC settings: the provider id, the String NPC key and the
- * migration from the legacy numeric Citizens id ({@code citizens.turn-in-npc-id}).
+ * migration from the legacy numeric id ({@code citizens.turn-in-npc-id}).
  */
 public record NpcBindingConfig(String providerId, String key, String name) {
 
-    public static final String DEFAULT_PROVIDER = "citizens";
-    public static final Set<String> KNOWN_PROVIDERS = Set.of("citizens", "loveessential");
+    /** The only supported NPC provider (2026-11-21: the provider switch was removed). */
+    public static final String PROVIDER_ID = Providers.LOVE_ESSENTIAL;
 
+    /** Leftover key of the removed provider switch: read only to report that its value is ignored. */
     public static final String PROVIDER_PATH = "integrations.npc-provider";
     public static final String KEY_PATH = "npc.turn-in-key";
     public static final String NAME_PATH = "npc.turn-in-name";
     public static final String LEGACY_ID_PATH = "citizens.turn-in-npc-id";
     public static final String LEGACY_NAME_PATH = "citizens.turn-in-npc-name";
 
-    /** Config value that follows {@code integrations.provider} of LoveCore. */
-    public static final String GLOBAL = "global";
-
-    /** True for an absent, blank or {@code global} value: the provider is then the global choice of LoveCore. */
-    public static boolean followsGlobal(String raw) {
-        return raw == null || raw.isBlank() || GLOBAL.equalsIgnoreCase(raw.trim());
-    }
-
-    /** Whether the raw config value names a provider this plugin knows (null, blank and {@code global} count as known). */
-    public static boolean isKnownProvider(String raw) {
-        return followsGlobal(raw) || KNOWN_PROVIDERS.contains(raw.trim().toLowerCase(Locale.ROOT));
-    }
-
     /**
-     * Provider id from config. {@code global}, absent or blank follows {@code integrations.provider} of LoveCore
-     * (without LoveCore: {@link #DEFAULT_PROVIDER}); a known id wins; anything unknown falls back to
-     * {@link #DEFAULT_PROVIDER}. Read when the settings are loaded, so a change needs {@code /lovehunt reload}.
+     * The leftover {@code integrations.npc-provider} value that is ignored, or {@code null} when it is absent,
+     * blank, {@code global} or already {@code loveessential}.
      */
-    public static String resolveProviderId(String raw) {
-        if (followsGlobal(raw)) {
-            try {
-                return LoveCore.providerId(ProviderKind.NPC, GLOBAL);
-            } catch (LinkageError coreMissingOrOld) {
-                return DEFAULT_PROVIDER;
-            }
-        }
-        String id = raw.trim().toLowerCase(Locale.ROOT);
-        return KNOWN_PROVIDERS.contains(id) ? id : DEFAULT_PROVIDER;
+    public static String ignoredProviderValue(String raw) {
+        if (raw == null) return null;
+        String value = raw.trim();
+        if (value.isEmpty() || value.equalsIgnoreCase("global") || value.equalsIgnoreCase(PROVIDER_ID)) return null;
+        return value;
     }
 
     /**
-     * Normalizes a raw config value into an NPC key. A number (legacy Citizens id, also {@code 5.0} or
+     * Normalizes a raw config value into an NPC key. A number (a legacy numeric id, also {@code 5.0} or
      * {@code "05"}) becomes plain digits; null, blank and negative numbers (the old {@code -1} "unbound"
      * marker) become the empty string, which means "not bound".
      */
@@ -86,7 +64,7 @@ public record NpcBindingConfig(String providerId, String key, String name) {
         return text;
     }
 
-    /** Whether the clicked NPC is the bound one: same provider as configured and the same key. */
+    /** Whether the clicked NPC is the bound one: same provider (LoveEssential) and the same key. */
     public static boolean isBound(String configuredProvider, String boundKey, String npcProviderId, String npcKey) {
         if (boundKey == null || boundKey.isEmpty() || npcProviderId == null || npcKey == null) {
             return false;
@@ -129,6 +107,6 @@ public record NpcBindingConfig(String providerId, String key, String name) {
         if (name.isEmpty()) {
             name = config.getString(LEGACY_NAME_PATH, "");
         }
-        return new NpcBindingConfig(resolveProviderId(config.getString(PROVIDER_PATH)), key, name);
+        return new NpcBindingConfig(PROVIDER_ID, key, name);
     }
 }

@@ -58,7 +58,7 @@ public final class Settings {
     private int clanBaseDurationHours;
     private int clanExtendCostPercent;
     private int clanMaxDurationDays;
-    private String npcProviderId = NpcBindingConfig.DEFAULT_PROVIDER;
+    private String npcProviderId = NpcBindingConfig.PROVIDER_ID;
     private String turnInNpcKey = "";
     private String turnInNpcName = "";
 
@@ -454,7 +454,7 @@ public final class Settings {
         return clanMaxDurationDays;
     }
 
-    /** NPC provider id from {@code integrations.npc-provider} ("citizens" or "loveessential"). */
+    /** NPC provider id: always "loveessential". */
     public String npcProviderId() {
         return npcProviderId;
     }
@@ -478,12 +478,12 @@ public final class Settings {
     }
 
     private void loadNpcBinding(FileConfiguration config) {
-        String rawProvider = config.getString(NpcBindingConfig.PROVIDER_PATH);
-        if (!NpcBindingConfig.isKnownProvider(rawProvider)) {
-            plugin.getLogger().warning("Unknown " + NpcBindingConfig.PROVIDER_PATH + " '" + rawProvider
-                    + "', using '" + NpcBindingConfig.DEFAULT_PROVIDER + "'.");
+        String ignored = NpcBindingConfig.ignoredProviderValue(config.getString(NpcBindingConfig.PROVIDER_PATH));
+        if (ignored != null) {
+            plugin.getLogger().warning(NpcBindingConfig.PROVIDER_PATH + ": value '" + ignored
+                    + "' is ignored, NPCs come from LoveEssential only; remove the key from config.yml.");
         }
-        // Legacy numeric Citizens id -> String key; written back once so the old keys disappear.
+        // Legacy numeric id -> String key; written back once so the old keys disappear.
         if (NpcBindingConfig.migrateLegacy(config)) {
             plugin.saveConfig();
             plugin.getLogger().info("Migrated the turn-in NPC binding from citizens.turn-in-npc-id to "

@@ -14,8 +14,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
- * Resolves the configured {@link NpcProvider} on every use (providers register late, and the config can be
- * reloaded). When the provider cannot be resolved, one warning naming it is logged and the NPC feature is
+ * Resolves the LoveEssential {@link NpcProvider} on every use (it registers late). When the provider cannot be resolved, one warning naming it is logged and the NPC feature is
  * simply unavailable - never an exception.
  */
 public final class NpcIntegration {
@@ -55,8 +54,8 @@ public final class NpcIntegration {
             return Optional.empty();
         }
         if (found == null || found.isEmpty()) {
-            warnOnce(id, "NPC provider '" + id + "' (integrations.npc-provider) is not registered in LoveCore - "
-                    + "is the plugin that provides it installed? The hunter NPC feature is disabled.", null);
+            warnOnce(id, "NPC provider '" + id + "' is not registered in LoveCore - "
+                    + "is LoveEssential installed? The hunter NPC feature is disabled.", null);
             return Optional.empty();
         }
         warned.remove(id);
