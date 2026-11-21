@@ -250,6 +250,12 @@ public final class MenuManager {
         lang.send(player, "cancelled");
     }
 
+    /** Drops pending chat input and a half-built bounty of a player who left, so neither outlives the session. */
+    public void forget(UUID playerId) {
+        inputs.remove(playerId);
+        createSessions.remove(playerId);
+    }
+
     public void handleChatInput(Player player, String message) {
         PlayerInput input = inputs.remove(player.getUniqueId());
         if (input == null) return;

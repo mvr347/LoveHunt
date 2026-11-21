@@ -7,6 +7,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
+import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 
 public final class ChatInputListener implements Listener {
@@ -27,5 +28,11 @@ public final class ChatInputListener implements Listener {
         event.setCancelled(true);
         String message = PlainTextComponentSerializer.plainText().serialize(event.message());
         Bukkit.getScheduler().runTask(plugin, () -> menuManager.handleChatInput(player, message));
+    }
+
+    @EventHandler
+    public void onQuit(PlayerQuitEvent event) {
+        // Otherwise the pending input survives the disconnect and swallows the player's first chat line after rejoining.
+        menuManager.forget(event.getPlayer().getUniqueId());
     }
 }
