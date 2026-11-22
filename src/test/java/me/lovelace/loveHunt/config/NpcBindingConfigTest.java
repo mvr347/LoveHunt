@@ -15,23 +15,21 @@ class NpcBindingConfigTest {
     }
 
     @Test
-    void providerDefaultsToCitizensAndRejectsUnknown() {
-        assertEquals("citizens", NpcBindingConfig.resolveProviderId(null));
-        assertEquals("citizens", NpcBindingConfig.resolveProviderId("  "));
-        assertEquals("citizens", NpcBindingConfig.resolveProviderId("znpcs"));
-        assertEquals("loveessential", NpcBindingConfig.resolveProviderId(" LoveEssential "));
-        assertTrue(NpcBindingConfig.isKnownProvider(null));
-        assertTrue(NpcBindingConfig.isKnownProvider("Citizens"));
-        assertFalse(NpcBindingConfig.isKnownProvider("znpcs"));
+    void providerIsAlwaysLoveEssential() {
+        assertEquals("loveessential", NpcBindingConfig.PROVIDER_ID);
+        assertEquals("loveessential", NpcBindingConfig.read(yaml("integrations:\n  npc-provider: citizens\n")).providerId(),
+                "a leftover value must not pick another provider");
     }
 
     @Test
-    void globalFollowsTheCoreAndWithoutItMeansCitizens() {
-        assertEquals("citizens", NpcBindingConfig.resolveProviderId("global"));
-        assertEquals("citizens", NpcBindingConfig.resolveProviderId(" GLOBAL "));
-        assertTrue(NpcBindingConfig.isKnownProvider("global"));
-        assertTrue(NpcBindingConfig.followsGlobal(null));
-        assertFalse(NpcBindingConfig.followsGlobal("citizens"));
+    void leftoverProviderValuesAreReportedButNeverUsed() {
+        assertEquals("citizens", NpcBindingConfig.ignoredProviderValue("citizens"));
+        assertEquals("znpcs", NpcBindingConfig.ignoredProviderValue(" znpcs "));
+        assertNull(NpcBindingConfig.ignoredProviderValue(null));
+        assertNull(NpcBindingConfig.ignoredProviderValue("  "));
+        assertNull(NpcBindingConfig.ignoredProviderValue("global"));
+        assertNull(NpcBindingConfig.ignoredProviderValue(" GLOBAL "));
+        assertNull(NpcBindingConfig.ignoredProviderValue("LoveEssential"));
     }
 
     @Test
@@ -61,7 +59,7 @@ class NpcBindingConfigTest {
         NpcBindingConfig binding = NpcBindingConfig.read(cfg);
         assertEquals("42", binding.key());
         assertEquals("Охотник", binding.name());
-        assertEquals("citizens", binding.providerId());
+        assertEquals("loveessential", binding.providerId());
         assertFalse(NpcBindingConfig.migrateLegacy(cfg), "migration is idempotent");
     }
 
@@ -94,11 +92,11 @@ class NpcBindingConfigTest {
 
     @Test
     void isBoundFiltersByProviderAndKey() {
-        assertTrue(NpcBindingConfig.isBound("citizens", "42", "citizens", "42"));
-        assertFalse(NpcBindingConfig.isBound("citizens", "42", "loveessential", "42"), "other provider's click is ignored");
-        assertFalse(NpcBindingConfig.isBound("citizens", "42", "citizens", "43"));
-        assertFalse(NpcBindingConfig.isBound("citizens", "", "citizens", ""), "unbound matches nothing");
-        assertFalse(NpcBindingConfig.isBound("citizens", "42", "citizens", null));
+        assertTrue(NpcBindingConfig.isBound("loveessential", "42", "loveessential", "42"));
+        assertFalse(NpcBindingConfig.isBound("loveessential", "42", "citizens", "42"), "other provider's click is ignored");
+        assertFalse(NpcBindingConfig.isBound("loveessential", "42", "loveessential", "43"));
+        assertFalse(NpcBindingConfig.isBound("loveessential", "", "loveessential", ""), "unbound matches nothing");
+        assertFalse(NpcBindingConfig.isBound("loveessential", "42", "loveessential", null));
         assertTrue(NpcBindingConfig.isBound("loveessential", "ext-1", "loveessential", "ext-1"));
     }
 
@@ -106,8 +104,9 @@ class NpcBindingConfigTest {
     void bundledConfigDefaults() {
         YamlConfiguration jar = YamlConfiguration.loadConfiguration(Path.of("src/main/resources/config.yml").toFile());
         NpcBindingConfig binding = NpcBindingConfig.read(jar);
-        assertEquals("citizens", binding.providerId());
+        assertEquals("loveessential", binding.providerId());
         assertEquals("", binding.key());
         assertFalse(NpcBindingConfig.migrateLegacy(jar), "the bundled config has no legacy keys");
+        assertNull(jar.getString(NpcBindingConfig.PROVIDER_PATH), "the provider switch was removed");
     }
 }

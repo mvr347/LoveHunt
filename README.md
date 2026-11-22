@@ -40,8 +40,6 @@ plugin:
   debug: false
 
 # NPC Охотника
-integrations:
-  npc-provider: global              # global (как в integrations.provider LoveCore) | citizens | loveessential
 npc:
   turn-in-key: ""                   # ключ NPC (текст), пусто = не привязан; ставится /lovehuntadmin npc bind
   turn-in-name: ""
@@ -98,9 +96,9 @@ hunts:
 
 Охоты могут быть привязаны к территориям кланов через LoveClaims. Клан получает награду коллективно, если хотя бы один член клана выполнил охоту.
 
-### NPC (Citizens / LoveEssential)
+### NPC (LoveEssential)
 
-NPC-Охотник, через которого выдаются и принимаются охоты (клик по NPC). Провайдер NPC выбирается `integrations.npc-provider` (`global` - как решено в `integrations.provider` LoveCore, `citizens` или `loveessential`), работает через LoveCore (`NpcProvider`/`NpcClickEvent`). Привязка — `/lovehuntadmin npc bind` на NPC, на которого смотрите.
+NPC-Охотник, через которого выдаются и принимаются охоты (клик по NPC). NPC даёт только LoveEssential (других провайдеров нет), работает через LoveCore (`NpcProvider`/`NpcClickEvent`). Привязка — `/lovehuntadmin npc bind` на NPC, на которого смотрите.
 
 ### PlaceholderAPI
 
@@ -140,7 +138,7 @@ NPC-Охотник, через которого выдаются и приним
 - **LoveCore** — единая система валюты (LoveEconomy)
 - **LoveClaims** — захват и привязка территорий к кланам
 - **LoveClans** — информация о кланах
-- **Citizens / LoveEssential** — NPC-Охотник (через LoveCore)
+- **LoveEssential** — NPC-Охотник (через LoveCore)
 - **PlaceholderAPI** — интеграция плейсхолдеров
 
 ## Установка и сборка
