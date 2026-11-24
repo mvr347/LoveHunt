@@ -41,6 +41,11 @@ clan-bounty:
   max-duration-days: 12
   max-hunters: 25 # max hunters that may accept a single clan bounty at once
 
+# 2026-11-24: одно поручение за раз на весь сервер: пока у игрока есть активное поручение LoveContracts
+# или уже принятый заказ, новый заказ взять нельзя. Раньше заказы и поручения копились независимо, и игрок вёл
+# десяток дел сразу; одно дело за раз делает каждое из них осмысленным. false возвращает прежнее поведение.
+one-assignment-at-a-time: true
+
 server-bounty:
   max-hunters: 25
   offline-freeze-days: 3

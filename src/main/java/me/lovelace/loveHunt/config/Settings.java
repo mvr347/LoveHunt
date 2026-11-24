@@ -34,6 +34,7 @@ public final class Settings {
     private int playerMaxHunters;
     private int clanMaxHunters;
     private int serverMaxHunters;
+    private boolean oneAssignmentAtATime;
     private int serverAnnouncementDelaySeconds;
     private int serverAnnouncementCooldownMinutes;
     private boolean serverAnnouncementHeraldEnabled;
@@ -118,6 +119,7 @@ public final class Settings {
         clanCooldownHours = Math.max(1, config.getInt("clan-bounty.per-player-cooldown-hours", 24));
         clanMaxHunters = Math.max(1, config.getInt("clan-bounty.max-hunters", 25));
         serverMaxHunters = Math.max(1, config.getInt("server-bounty.max-hunters", 25));
+        oneAssignmentAtATime = config.getBoolean("one-assignment-at-a-time", true);
         serverAnnouncementDelaySeconds = Math.max(1, config.getInt("server-bounty.announcement.delay-seconds", 20));
         serverAnnouncementCooldownMinutes = Math.max(1, config.getInt("server-bounty.announcement.cooldown-minutes", 5));
         serverAnnouncementHeraldEnabled = config.getBoolean("server-bounty.announcement.herald-enabled", true);
@@ -321,6 +323,11 @@ public final class Settings {
 
     public int clanMaxHunters() {
         return clanMaxHunters;
+    }
+
+    /** A hunter may not take a bounty while carrying a LoveContracts quest, or a second bounty. */
+    public boolean oneAssignmentAtATime() {
+        return oneAssignmentAtATime;
     }
 
     public int serverMaxHunters() {

@@ -444,6 +444,7 @@ pass-revoked-inactive: "<red>Вы давно не брали заказы, би�
 pass-level-up: "<green>Билет охотника: уровень {level}. Налог с награды теперь {tax}%."
 pass-level-down: "<yellow>Вы давно не брали заказы, уровень билета снижен до {level}."
 accept-no-pass: "<red>Брать заказы могут только охотники: купите билет у NPC."
+accept-other-assignment: "<red>Вы уже ведёте другое поручение или заказ. Завершите или отмените его, прежде чем брать новый."
 create-no-hunters: "<red>Сейчас на сервере нет ни одного охотника, заказ создать нельзя."
 reward-not-coin: "<red>Награда должна быть монетами: возьмите монеты в руку."
 reward-given-coins: "<green>Вы получили <white>{amount}</white> {currency} <gray>(налог {tax}% от {gross})</gray>."

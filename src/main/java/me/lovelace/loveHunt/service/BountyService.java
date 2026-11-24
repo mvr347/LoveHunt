@@ -300,6 +300,11 @@ public final class BountyService {
         if (isFrozen(bounty)) {
             return CompletableFuture.completedFuture(false);
         }
+        if (settings.oneAssignmentAtATime()
+                && (!acceptedBy(hunter.getUniqueId()).isEmpty() || OtherAssignments.hasContractsQuest(hunter))) {
+            lang.notice(hunter, "accept-other-assignment");
+            return CompletableFuture.completedFuture(false);
+        }
         BountyAcceptEvent event = new BountyAcceptEvent(hunter, bounty, !Bukkit.isPrimaryThread());
         Bukkit.getPluginManager().callEvent(event);
         if (event.isCancelled()) {
