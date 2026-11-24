@@ -332,7 +332,25 @@ public final class BountyService {
                 return CompletableFuture.completedFuture(false);
             }
         }
-        acceptedByHunter.computeIfAbsent(hunter.getUniqueId(), ignored -> ConcurrentHashMap.newKeySet()).add(bounty.id());
+        // The one-assignment rule is decided here atomically per hunter: the early check above can be passed by two
+        // threads accepting different bounties at once, compute() on the hunter's entry cannot.
+        boolean[] registered = {true};
+        acceptedByHunter.compute(hunter.getUniqueId(), (id, current) -> {
+            Set<Long> accepted = current != null ? current : ConcurrentHashMap.newKeySet();
+            if (settings.oneAssignmentAtATime() && !accepted.isEmpty() && !accepted.contains(bounty.id())) {
+                registered[0] = false;
+            } else {
+                accepted.add(bounty.id());
+            }
+            return accepted;
+        });
+        if (!registered[0]) {
+            synchronized (hunters) {
+                hunters.remove(hunter.getUniqueId());
+            }
+            lang.notice(hunter, "accept-other-assignment");
+            return CompletableFuture.completedFuture(false);
+        }
         return database.insertHunter(bounty.id(), hunter.getUniqueId(), System.currentTimeMillis()).thenApply(inserted -> {
             if (!inserted) {
                 // Should not normally happen given the in-memory reservation above, but if the DB
